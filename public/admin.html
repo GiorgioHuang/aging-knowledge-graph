@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/favicon.svg" />
+<title>GraceAge Knowledge — Curation</title>
+<style>
+  :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --err:#ff6b6b; --header:#eef3f1; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
+  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  header .brand { flex: 0 0 auto; display: flex; }
+  header .brand img { width: 40px; height: 40px; display: block; }
+  header h1 { margin: 0; font-size: 18px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
+  main { max-width: 920px; margin: 0 auto; padding: 20px; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin: 0 0 18px; padding: 14px 16px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 2px; }
+  input, select, textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background:var(--surface); color:var(--fg); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; } .row > div { flex: 1; min-width: 160px; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  button.secondary { background: #26332f; color: var(--fg); } button.danger { background: #b00020; }
+  button.mini { padding: 2px 8px; font-size: 12px; }
+  .out { white-space: pre-wrap; font: 12px/1.4 ui-monospace, monospace; background: #0f1b19; border: 1px solid var(--line); border-radius: 7px; padding: 10px; margin-top: 10px; max-height: 220px; overflow: auto; }
+  .ok { color: var(--accent); } .err { color: var(--err); }
+  .hint { font-size: 12px; color: var(--muted); }
+  .item { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .item .grow { flex:1; } .item code { color:var(--muted); }
+  .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
+  .site-footer a { color: var(--accent); }
+  .site-footer .fnav { margin: 6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/" title="GraceAge Knowledge Lab"><img src="/logo-mark.svg" alt="GraceAge Knowledge Lab" /></a>
+  <div>
+    <h1>GraceAge Knowledge — Curation</h1>
+    <small>Curator console · <a href="/">home</a> · <a href="/browse">browse</a> · <a href="/review">review queue</a> · <a href="/about">about</a> · Backend: <span id="backend">…</span></small>
+  </div>
+</header>
+<main>
+  <p class="hint" style="margin:0 0 16px">Signed in as curator. The interactive graph &amp; node detail live on the <a href="/" style="color:var(--accent)">home page</a>. Each node in the list below has a <b>view</b> button that opens it there.</p>
+
+  <fieldset>
+    <legend id="nodeLegend">Add node</legend>
+    <div class="row">
+      <div><label>id (e.g. ga:my-concept)</label><input id="n_id" /></div>
+      <div><label>type</label><select id="n_type"></select></div>
+    </div>
+    <label>name</label><input id="n_name" />
+    <div class="row">
+      <div><label>domains (comma-separated)</label><input id="n_domains" /></div>
+      <div><label>external_ids / CURIEs (comma-separated)</label><input id="n_curies" /></div>
+    </div>
+    <label>description</label><textarea id="n_desc" rows="2"></textarea>
+    <p><button onclick="saveNode()" id="n_btn">Create node</button> <button class="secondary" id="n_cancel" hidden onclick="cancelEdit()">Cancel edit</button></p>
+    <div id="n_out" class="out" hidden></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Add claim (with evidence)</legend>
+    <div class="row">
+      <div><label>id (e.g. cl-001)</label><input id="c_id" /></div>
+      <div><label>relationship type</label><select id="c_type"></select></div>
+    </div>
+    <div class="row">
+      <div><label>subject (node id)</label><input id="c_subject" list="nodes" /></div>
+      <div><label>object (node id)</label><input id="c_object" list="nodes" /></div>
+    </div>
+    <datalist id="nodes"></datalist>
+    <div class="row">
+      <div><label>population (optional)</label><input id="c_pop" list="nodes" /></div>
+      <div><label>direction</label><select id="c_dir"></select></div>
+      <div><label>certainty</label><select id="c_cert"></select></div>
+      <div><label>status</label><select id="c_status"></select></div>
+    </div>
+    <label>evidence source_id (CURIE, e.g. DOI:/PMID:) — needed for curated non-definitional claims</label>
+    <div class="row"><div><input id="c_src" placeholder="DOI:10.1002/14651858.CD012424.pub2" /></div>
+      <div style="flex:0 0 auto"><button class="secondary" onclick="pubmed()">Look up PMID…</button></div></div>
+    <div class="row">
+      <div><label>study design</label><select id="c_design"></select></div>
+      <div><label>evidence quote</label><input id="c_quote" /></div>
+    </div>
+    <p><button onclick="addClaim()">Create claim</button></p>
+    <div id="c_out" class="out" hidden></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Bulk import</legend>
+    <p class="hint">CSV nodes header: <code>id,type,name,domains,external_ids,description</code> · CSV claims header: <code>id,type,subject,object,population,direction,certainty,status,source_id,study_design,quote</code> (multi-values use <code>;</code>). JSON: <code>{"nodes":[…],"claims":[…],"evidence":[…]}</code>.</p>
+    <textarea id="imp" rows="6" placeholder="paste CSV or JSON…"></textarea>
+    <p>
+      <button onclick="imp('csv','nodes')">Import CSV nodes</button>
+      <button onclick="imp('csv','claims')">Import CSV claims</button>
+      <button onclick="imp('json')">Import JSON</button>
+    </p>
+    <div id="imp_out" class="out" hidden></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Browse / delete</legend>
+    <p><button class="secondary" onclick="reload()">Refresh</button>
+       <input id="filter" placeholder="filter nodes…" oninput="renderLists()" style="width:200px;display:inline-block" /></p>
+    <strong>Nodes</strong><div id="nodeList"></div>
+    <strong style="display:block;margin-top:12px">Claims</strong><div id="claimList"></div>
+  </fieldset>
+
+  <footer class="site-footer">
+    <div>Curator console · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
+    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/review">review queue</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
+    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL)</div>
+    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let GRAPH = { nodes: [], edges: [] };
+let editId = null;
+
+const fill = (sel, items, blank) => sel.innerHTML = (blank ? ["<option value=''></option>"] : []).concat(items.map(i => `<option>${i}</option>`)).join("");
+const show = (el, obj, ok) => { el.hidden = false; el.className = "out " + (ok ? "ok" : "err"); el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2); };
+
+async function req(method, path, body, raw, contentType) {
+  // No auth header: the page is behind HTTP Basic auth, so the browser attaches
+  // the cached credentials to these same-origin requests automatically.
+  const opt = { method, headers: {} };
+  if (raw != null) { opt.headers["content-type"] = contentType || "text/plain"; opt.body = raw; }
+  else if (body) { opt.headers["content-type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch(path, opt);
+  return { status: r.status, body: await r.json().catch(() => ({})) };
+}
+
+async function init() {
+  try {
+    $("backend").textContent = (await (await fetch("/health")).json()).backend;
+    const o = await (await fetch("/ontology")).json();
+    fill($("n_type"), o.nodeTypes); fill($("c_type"), o.relationshipTypes);
+    fill($("c_dir"), o.directions, true); fill($("c_cert"), o.certainties, true);
+    fill($("c_status"), o.statuses); $("c_status").value = "curated";
+    fill($("c_design"), o.studyDesigns, true);
+  } catch { $("backend").textContent = "unreachable"; }
+  await reload();
+}
+
+async function reload() {
+  GRAPH = await (await fetch("/graph")).json();
+  $("nodes").innerHTML = GRAPH.nodes.map(n => `<option value="${n.id}">${n.name}</option>`).join("");
+  renderLists();
+}
+function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "noopener"); }
+function renderLists() {
+  const f = ($("filter").value || "").toLowerCase();
+  const nm = id => (GRAPH.nodes.find(n => n.id === id) || {}).name || id;
+  $("nodeList").innerHTML = GRAPH.nodes
+    .filter(n => !f || n.id.toLowerCase().includes(f) || n.name.toLowerCase().includes(f))
+    .map(n => `<div class="item"><span class="grow">${n.name} <code>${n.id} · ${n.type}</code></span>
+     <button class="mini secondary" onclick="openNode('${n.id}')">view</button>
+     <button class="mini secondary" onclick="editNode('${n.id}')">edit</button>
+     <button class="mini danger" onclick="del('nodes','${n.id}')">del</button></div>`).join("");
+  $("claimList").innerHTML = GRAPH.edges
+    .filter(e => !f || nm(e.source).toLowerCase().includes(f) || nm(e.target).toLowerCase().includes(f))
+    .map(e => `<div class="item"><span class="grow">${nm(e.source)} <code>${e.type}${e.direction ? " (" + e.direction + ")" : ""}</code> ${nm(e.target)} <code>${e.dose ? e.dose + " · " : ""}${e.comparator ? "vs " + e.comparator + " · " : ""}${e.certainty || ""} ${e.status}</code></span>
+     <button class="mini danger" onclick="del('claims','${e.id}')">del</button></div>`).join("");
+}
+async function imp(fmt, kind) {
+  const text = $("imp").value.trim(); if (!text) return;
+  let r;
+  if (fmt === "csv") r = await req("POST", "/import/csv?kind=" + kind, null, text, "text/csv");
+  else { let body; try { body = JSON.parse(text); } catch { return show($("imp_out"), "invalid JSON", false); } r = await req("POST", "/import", body); }
+  show($("imp_out"), r.body, r.status < 300);
+  if (r.status < 300) reload();
+}
+async function pubmed() {
+  const id = prompt("PMID (number):"); if (!id) return;
+  const r = await req("GET", "/pubmed/" + encodeURIComponent(id.trim()));
+  if (r.status >= 300) return alert("Lookup failed: " + JSON.stringify(r.body));
+  $("c_src").value = r.body.doi || r.body.source_id;
+  alert(`${r.body.title}\n${(r.body.authors||[]).slice(0,3).join(", ")} (${r.body.year}) — ${r.body.journal}\nsource_id set to ${$("c_src").value}`);
+}
+
+function editNode(id) {
+  const n = GRAPH.nodes.find(x => x.id === id); if (!n) return;
+  editId = id; $("n_id").value = n.id; $("n_id").disabled = true; $("n_type").value = n.type; $("n_name").value = n.name;
+  $("n_domains").value = (n.domains||[]).join(", ");
+  $("nodeLegend").textContent = "Edit node: " + id; $("n_btn").textContent = "Update node"; $("n_cancel").hidden = false;
+  window.scrollTo(0, $("nodeLegend").offsetTop);
+}
+function cancelEdit() { editId = null; $("n_id").disabled = false; ["n_id","n_name","n_domains","n_curies","n_desc"].forEach(i=>$(i).value=""); $("nodeLegend").textContent="Add node"; $("n_btn").textContent="Create node"; $("n_cancel").hidden = true; }
+
+async function saveNode() {
+  const body = { id: $("n_id").value.trim(), type: $("n_type").value, name: $("n_name").value.trim(),
+    description: $("n_desc").value.trim() || undefined,
+    domains: $("n_domains").value.split(",").map(s=>s.trim()).filter(Boolean),
+    external_ids: $("n_curies").value.split(",").map(s=>s.trim()).filter(Boolean) };
+  const r = editId ? await req("PUT", "/nodes/" + encodeURIComponent(editId), body) : await req("POST", "/nodes", body);
+  show($("n_out"), r.body, r.status < 300);
+  if (r.status < 300) { cancelEdit(); reload(); }
+}
+async function addClaim() {
+  const ev = $("c_src").value.trim() ? [{ source_id: $("c_src").value.trim(), study_design: $("c_design").value || undefined, quote: $("c_quote").value.trim() || undefined }] : [];
+  const body = { id: $("c_id").value.trim(), type: $("c_type").value, subject: $("c_subject").value.trim(), object: $("c_object").value.trim(),
+    population: $("c_pop").value.trim() || undefined, direction: $("c_dir").value || undefined,
+    certainty: $("c_cert").value || undefined, status: $("c_status").value, evidence: ev };
+  const r = await req("POST", "/claims", body);
+  show($("c_out"), r.body, r.status < 300);
+  if (r.status < 300) reload();
+}
+async function del(resource, id) {
+  if (!confirm(`Delete ${resource.slice(0,-1)} ${id}?`)) return;
+  const r = await req("DELETE", `/${resource}/` + encodeURIComponent(id));
+  if (r.status >= 300) alert("Delete failed: " + JSON.stringify(r.body)); else reload();
+}
+init();
+</script>
+</body>
+</html>

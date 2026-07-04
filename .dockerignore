@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+test
+docs
+scripts/*
+!scripts/agent-run.ts
+db/seed.generated.sql
+*.log
+.DS_Store
+/root

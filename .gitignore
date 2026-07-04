@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+# generated from seed/graph.json by `npm run seed:sql`
+db/seed.generated.sql
+# ephemeral postgres data (verify-postgres.sh uses a tmp dir, but just in case)
+.pgdata/

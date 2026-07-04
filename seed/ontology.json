@@ -1,0 +1,32 @@
+{
+  "_comment": "Controlled vocabularies for GraceAge Knowledge V0. Single source of truth for the validator; mirrors docs/02-knowledge-model.md and db/migrations/0001_init.sql.",
+  "nodeTypes": [
+    "disease", "symptom", "outcome", "population", "intervention", "exercise",
+    "nutrition", "drug", "mechanism", "scale", "tool", "research", "paper",
+    "guideline", "expert", "organization", "technology"
+  ],
+  "relationshipTypes": [
+    "treats", "prevents", "improves", "worsens", "causes",
+    "increases_risk_of", "reduces_risk_of", "diagnoses", "assesses", "measures",
+    "is_a", "part_of", "recommends", "related"
+  ],
+  "definitionalRelationships": ["is_a", "part_of", "assesses", "measures", "diagnoses"],
+  "directions": ["increase", "decrease", "no_effect", "mixed"],
+  "certainties": ["high", "moderate", "low", "very_low"],
+  "statuses": ["curated", "unverified", "needs_refinement", "skeleton"],
+  "settings": ["home", "community", "ltc", "hospital", "rehab", "any"],
+  "studyDesigns": [
+    "systematic_review_or_meta_analysis", "rct", "cohort", "case_control",
+    "cross_sectional", "case_report", "expert_opinion", "guideline"
+  ],
+  "domains": [
+    "gerontology", "health informatics", "nutrition", "exercise", "sleep",
+    "mental health", "frailty", "falls", "dementia", "caregiving",
+    "palliative care", "rehabilitation", "AI in healthcare", "digital health",
+    "behavior change"
+  ],
+  "knownCuriePrefixes": [
+    "MONDO", "HP", "MESH", "RXNORM", "CHEBI", "FOODON", "GO", "LOINC", "ROR",
+    "ORCID", "DOI", "PMID", "PMCID", "SNOMED", "ICD11", "ATC"
+  ]
+}

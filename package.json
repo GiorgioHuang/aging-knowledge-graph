@@ -1,0 +1,30 @@
+{
+  "name": "graceage-knowledge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GraceAge Knowledge — an open, evidence-traceable knowledge graph for aging well (V0).",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/http.ts",
+    "validate": "node --experimental-strip-types src/cli.ts validate",
+    "query": "node --experimental-strip-types src/cli.ts query",
+    "serve": "node --experimental-strip-types src/http.ts",
+    "mcp": "node --experimental-strip-types src/mcp.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "seed:sql": "node --experimental-strip-types scripts/seed-to-sql.ts > db/seed.generated.sql",
+    "db:verify": "bash scripts/verify-postgres.sh",
+    "db:setup": "node --experimental-strip-types scripts/neon-setup.ts",
+    "db:ensure": "node --experimental-strip-types scripts/neon-setup.ts --ensure",
+    "db:setup:psql": "bash scripts/neon-setup.sh",
+    "db:search": "node --experimental-strip-types src/cli.ts query search",
+    "agents:run": "node --experimental-strip-types scripts/agent-run.ts",
+    "db:dedup": "node --experimental-strip-types scripts/dedup-claims.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
+  }
+}

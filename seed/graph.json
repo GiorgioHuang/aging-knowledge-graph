@@ -1,0 +1,119 @@
+{
+  "_comment": "Curated V0 seed graph. Evidence-backed cross-domain chains (falls/exercise, social/loneliness, dementia risk factors) plus interRAI/MDS assessment scales (CPS, DRS, ADL Hierarchy, CHESS, Pain) as a measurement layer. All DOIs/PMIDs verified (interRAI scale names are referenced with their validation-paper citations; the proprietary interRAI item dictionaries are NOT redistributed). Unconfirmed CURIE codes are omitted rather than guessed.",
+  "version": 3,
+
+  "nodes": [
+    { "id": "ga:pop-community-older", "type": "population", "name": "Community-dwelling older adults (65+)", "domains": ["gerontology"] },
+    { "id": "ga:pop-older-women-70", "type": "population", "name": "Community-dwelling women ≥70", "domains": ["gerontology"] },
+    { "id": "ga:exercise", "type": "exercise", "name": "Exercise (physical activity)", "external_ids": ["MESH:D015444"], "domains": ["exercise"] },
+    { "id": "ga:resistance-training", "type": "exercise", "name": "Progressive resistance training", "external_ids": ["MESH:D055070"], "domains": ["exercise"] },
+    { "id": "ga:muscle-strength", "type": "outcome", "name": "Muscle strength", "external_ids": ["MESH:D053580"], "domains": ["exercise", "frailty"] },
+    { "id": "ga:fall-rate", "type": "outcome", "name": "Fall rate (accidental falls)", "external_ids": ["MESH:D000058"], "domains": ["falls"] },
+    { "id": "ga:sarcopenia", "type": "disease", "name": "Sarcopenia", "external_ids": ["MESH:D055948"], "domains": ["frailty"] },
+    { "id": "ga:vitamin-d", "type": "nutrition", "name": "Vitamin D", "external_ids": ["MESH:D014807"], "domains": ["nutrition"] },
+    { "id": "ga:sppb", "type": "scale", "name": "Short Physical Performance Battery (SPPB)", "domains": ["frailty", "rehabilitation"] },
+    { "id": "ga:muscle-protein-synthesis", "type": "mechanism", "name": "Muscle protein synthesis", "domains": ["exercise"] },
+    { "id": "ga:uspstf", "type": "organization", "name": "US Preventive Services Task Force", "domains": ["health informatics"] },
+    { "id": "ga:gdl-uspstf-falls-2018", "type": "guideline", "name": "USPSTF 2018 Falls Prevention Recommendation", "external_ids": ["PMID:29710141"], "domains": ["falls"] },
+
+    { "id": "ga:pop-older", "type": "population", "name": "Older adults (65+)", "domains": ["gerontology"] },
+    { "id": "ga:social-participation", "type": "intervention", "name": "Social participation", "external_ids": ["MESH:D058992"], "domains": ["mental health", "behavior change"] },
+    { "id": "ga:social-intervention", "type": "intervention", "name": "Social/psychological intervention for loneliness", "domains": ["mental health"] },
+    { "id": "ga:loneliness", "type": "outcome", "name": "Loneliness (subjective)", "external_ids": ["MESH:D008132"], "domains": ["mental health"] },
+    { "id": "ga:social-isolation", "type": "outcome", "name": "Social isolation (objective)", "external_ids": ["MESH:D012934"], "domains": ["mental health"] },
+    { "id": "ga:depression", "type": "disease", "name": "Depressive disorder", "external_ids": ["MESH:D003866"], "domains": ["mental health"] },
+    { "id": "ga:dementia", "type": "disease", "name": "Dementia", "external_ids": ["MESH:D003704"], "domains": ["dementia"] },
+    { "id": "ga:mortality", "type": "outcome", "name": "All-cause mortality", "external_ids": ["MESH:D009026"], "domains": ["gerontology"] },
+    { "id": "ga:maladaptive-social-cognition", "type": "mechanism", "name": "Maladaptive social cognition", "domains": ["mental health"] },
+    { "id": "ga:ucla", "type": "scale", "name": "UCLA Loneliness Scale", "domains": ["mental health"] },
+    { "id": "ga:phq9", "type": "scale", "name": "Patient Health Questionnaire-9 (PHQ-9)", "external_ids": ["LOINC:44249-1"], "domains": ["mental health"] },
+
+    { "id": "ga:hearing-loss", "type": "disease", "name": "Hearing loss", "domains": ["dementia", "gerontology"] },
+    { "id": "ga:sedatives", "type": "drug", "name": "Sedatives & hypnotics", "domains": ["falls", "mental health"] },
+    { "id": "ga:benzodiazepines", "type": "drug", "name": "Benzodiazepines", "domains": ["falls", "mental health"] },
+    { "id": "ga:cognitive-function", "type": "outcome", "name": "Cognitive function", "domains": ["dementia", "mental health"] },
+
+    { "id": "ga:adl", "type": "outcome", "name": "Activities of daily living (ADL) function", "domains": ["rehabilitation", "frailty"] },
+    { "id": "ga:pain", "type": "symptom", "name": "Pain", "domains": ["palliative care", "gerontology"] },
+    { "id": "ga:health-instability", "type": "outcome", "name": "Health instability (clinical complexity / decline)", "domains": ["frailty", "palliative care", "gerontology"] },
+    { "id": "ga:interrai-cps", "type": "scale", "name": "Cognitive Performance Scale (interRAI/MDS)", "domains": ["dementia", "mental health", "gerontology"] },
+    { "id": "ga:interrai-drs", "type": "scale", "name": "Depression Rating Scale (interRAI/MDS)", "domains": ["mental health"] },
+    { "id": "ga:interrai-adlh", "type": "scale", "name": "ADL Hierarchy Scale (interRAI/MDS)", "domains": ["rehabilitation", "frailty"] },
+    { "id": "ga:interrai-chess", "type": "scale", "name": "CHESS Scale — Changes in Health, End-stage disease, Signs and Symptoms (interRAI/MDS)", "domains": ["frailty", "palliative care", "gerontology"] },
+    { "id": "ga:interrai-pain", "type": "scale", "name": "Pain Scale (interRAI/MDS)", "domains": ["palliative care", "gerontology"] }
+  ],
+
+  "claims": [
+    { "id": "fc-1", "type": "is_a", "subject": "ga:resistance-training", "object": "ga:exercise", "status": "curated" },
+    { "id": "fc-2", "type": "improves", "subject": "ga:resistance-training", "object": "ga:muscle-strength", "population": "ga:pop-community-older", "direction": "increase", "mechanism": "ga:muscle-protein-synthesis", "certainty": "high", "status": "curated", "evidence": ["E-LiuLatham-2009"] },
+    { "id": "fc-3", "type": "reduces_risk_of", "subject": "ga:exercise", "object": "ga:fall-rate", "population": "ga:pop-community-older", "setting": "community", "direction": "decrease", "effect_value": 0.66, "effect_measure": "RaR", "effect_note": "95% CI 0.50-0.88; multiple-category exercise", "certainty": "high", "status": "curated", "evidence": ["E-Sherrington-2019", "E-USPSTF-2018"] },
+    { "id": "fc-4", "type": "assesses", "subject": "ga:sppb", "object": "ga:muscle-strength", "status": "curated" },
+    { "id": "fc-5", "type": "worsens", "subject": "ga:sarcopenia", "object": "ga:muscle-strength", "direction": "decrease", "certainty": "high", "status": "curated", "evidence": ["E-EWGSOP2-2019"] },
+    { "id": "fc-6", "type": "treats", "subject": "ga:exercise", "object": "ga:sarcopenia", "status": "unverified" },
+    { "id": "fc-7", "type": "recommends", "subject": "ga:gdl-uspstf-falls-2018", "object": "ga:exercise", "population": "ga:pop-community-older", "rec_strength": "USPSTF B", "status": "curated", "evidence": ["E-USPSTF-2018-rec"] },
+    { "id": "fc-h1", "type": "reduces_risk_of", "subject": "ga:vitamin-d", "object": "ga:fall-rate", "population": "ga:pop-community-older", "direction": "decrease", "certainty": "very_low", "status": "unverified" },
+    { "id": "fc-8", "type": "reduces_risk_of", "subject": "ga:vitamin-d", "object": "ga:fall-rate", "population": "ga:pop-community-older", "direction": "no_effect", "certainty": "moderate", "status": "curated", "evidence": ["E-USPSTF-2018-vitd"] },
+    { "id": "fc-9", "type": "increases_risk_of", "subject": "ga:vitamin-d", "object": "ga:fall-rate", "population": "ga:pop-older-women-70", "dose": "500,000 IU oral, once yearly (bolus)", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Sanders-2010"] },
+
+    { "id": "sc-1", "type": "reduces_risk_of", "subject": "ga:social-participation", "object": "ga:loneliness", "population": "ga:pop-older", "direction": "decrease", "certainty": "low", "status": "curated", "evidence": ["E-Masi-2011"] },
+    { "id": "sc-2", "type": "increases_risk_of", "subject": "ga:loneliness", "object": "ga:depression", "population": "ga:pop-older", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Cacioppo-2006"] },
+    { "id": "sc-3", "type": "increases_risk_of", "subject": "ga:loneliness", "object": "ga:mortality", "direction": "increase", "effect_value": 1.26, "effect_measure": "OR", "effect_note": "+26% odds of mortality", "certainty": "moderate", "status": "curated", "evidence": ["E-HoltLunstad-2015"] },
+    { "id": "sc-4", "type": "increases_risk_of", "subject": "ga:social-isolation", "object": "ga:mortality", "direction": "increase", "effect_value": 1.29, "effect_measure": "OR", "effect_note": "+29% odds of mortality", "certainty": "moderate", "status": "curated", "evidence": ["E-HoltLunstad-2015b"] },
+    { "id": "sc-5", "type": "increases_risk_of", "subject": "ga:loneliness", "object": "ga:dementia", "direction": "increase", "certainty": "low", "status": "curated", "evidence": ["E-Penninkilampi-2018"] },
+    { "id": "sc-6", "type": "reduces_risk_of", "subject": "ga:social-participation", "object": "ga:depression", "population": "ga:pop-older", "direction": "decrease", "status": "unverified" },
+    { "id": "sc-7", "type": "assesses", "subject": "ga:ucla", "object": "ga:loneliness", "status": "curated" },
+    { "id": "sc-8", "type": "assesses", "subject": "ga:phq9", "object": "ga:depression", "status": "curated" },
+    { "id": "sc-9", "type": "reduces_risk_of", "subject": "ga:social-intervention", "object": "ga:loneliness", "population": "ga:pop-older", "direction": "decrease", "mechanism": "ga:maladaptive-social-cognition", "comparator": "social-contact-only interventions", "certainty": "moderate", "status": "curated", "evidence": ["E-Masi-2011-cog"] },
+
+    { "id": "dc-1", "type": "increases_risk_of", "subject": "ga:hearing-loss", "object": "ga:dementia", "population": "ga:pop-older", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Livingston-2020-hearing"] },
+    { "id": "dc-2", "type": "increases_risk_of", "subject": "ga:depression", "object": "ga:dementia", "population": "ga:pop-older", "direction": "increase", "certainty": "low", "status": "curated", "evidence": ["E-Livingston-2020-depression"] },
+    { "id": "dc-3", "type": "reduces_risk_of", "subject": "ga:exercise", "object": "ga:dementia", "population": "ga:pop-older", "direction": "decrease", "certainty": "low", "status": "curated", "evidence": ["E-Livingston-2020-activity"] },
+    { "id": "dc-4", "type": "increases_risk_of", "subject": "ga:social-isolation", "object": "ga:dementia", "population": "ga:pop-older", "direction": "increase", "certainty": "low", "status": "curated", "evidence": ["E-Livingston-2020-social"] },
+    { "id": "dc-5", "type": "improves", "subject": "ga:exercise", "object": "ga:cognitive-function", "population": "ga:pop-older", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Northey-2018"] },
+    { "id": "dc-6", "type": "increases_risk_of", "subject": "ga:sedatives", "object": "ga:fall-rate", "population": "ga:pop-community-older", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Woolcott-2009"] },
+    { "id": "dc-7", "type": "is_a", "subject": "ga:benzodiazepines", "object": "ga:sedatives", "status": "curated" },
+    { "id": "dc-8", "type": "increases_risk_of", "subject": "ga:benzodiazepines", "object": "ga:fall-rate", "population": "ga:pop-community-older", "direction": "increase", "certainty": "moderate", "status": "curated", "evidence": ["E-Woolcott-2009-bzd"] },
+
+    { "id": "ir-cps", "type": "assesses", "subject": "ga:interrai-cps", "object": "ga:cognitive-function", "status": "curated", "evidence": ["E-CPS-Morris-1994"] },
+    { "id": "ir-drs", "type": "assesses", "subject": "ga:interrai-drs", "object": "ga:depression", "status": "curated", "evidence": ["E-DRS-Burrows-2000"] },
+    { "id": "ir-adlh", "type": "assesses", "subject": "ga:interrai-adlh", "object": "ga:adl", "status": "curated", "evidence": ["E-ADLH-Morris-1999"] },
+    { "id": "ir-chess", "type": "assesses", "subject": "ga:interrai-chess", "object": "ga:health-instability", "status": "curated", "evidence": ["E-CHESS-Hirdes-2003"] },
+    { "id": "ir-pain", "type": "assesses", "subject": "ga:interrai-pain", "object": "ga:pain", "status": "curated", "evidence": ["E-PAIN-Fries-2001"] }
+  ],
+
+  "contradictions": [
+    { "id": "ct-1", "subject_claim": "fc-8", "object_claim": "fc-h1" },
+    { "id": "ct-2", "subject_claim": "fc-9", "object_claim": "fc-h1" }
+  ],
+
+  "evidence": [
+    { "id": "E-Sherrington-2019", "claim": "fc-3", "source_id": "DOI:10.1002/14651858.CD012424.pub2", "study_design": "systematic_review_or_meta_analysis", "quote": "Multiple-category exercise reduces the rate of falls (RaR 0.66, 95% CI 0.50-0.88); exercise reduces falls (high-certainty).", "extracted_by": "human" },
+    { "id": "E-LiuLatham-2009", "claim": "fc-2", "source_id": "DOI:10.1002/14651858.CD002759.pub2", "study_design": "systematic_review_or_meta_analysis", "quote": "Progressive resistance training produces a large improvement in muscle strength in older adults.", "extracted_by": "human" },
+    { "id": "E-USPSTF-2018", "claim": "fc-3", "source_id": "PMID:29710141", "study_design": "guideline", "quote": "Exercise recommended (B); vitamin D supplementation has no benefit for preventing falls.", "extracted_by": "human" },
+    { "id": "E-USPSTF-2018-rec", "claim": "fc-7", "source_id": "PMID:29710141", "study_design": "guideline", "quote": "The USPSTF recommends exercise interventions to prevent falls in community-dwelling adults 65+ at increased risk (B recommendation).", "extracted_by": "human" },
+    { "id": "E-USPSTF-2018-vitd", "claim": "fc-8", "source_id": "PMID:29710141", "study_design": "guideline", "quote": "The USPSTF found adequate evidence that vitamin D supplementation has no benefit in preventing falls.", "extracted_by": "human" },
+    { "id": "E-Sanders-2010", "claim": "fc-9", "source_id": "DOI:10.1001/jama.2010.594", "study_design": "rct", "quote": "A single annual high dose (500,000 IU) of oral vitamin D increased the rate of falls and fractures in older women.", "extracted_by": "human" },
+    { "id": "E-EWGSOP2-2019", "claim": "fc-5", "source_id": "DOI:10.1093/ageing/afy169", "study_design": "guideline", "quote": "EWGSOP2 uses low muscle strength as the primary characteristic defining sarcopenia.", "extracted_by": "human" },
+
+    { "id": "E-Masi-2011", "claim": "sc-1", "source_id": "DOI:10.1177/1088868310377394", "study_design": "systematic_review_or_meta_analysis", "quote": "Loneliness interventions had a small-to-moderate effect; in RCTs the most successful addressed maladaptive social cognition.", "extracted_by": "human" },
+    { "id": "E-Masi-2011-cog", "claim": "sc-9", "source_id": "DOI:10.1177/1088868310377394", "study_design": "systematic_review_or_meta_analysis", "quote": "Among RCTs, interventions addressing maladaptive social cognition were more effective than those that only increased social contact.", "extracted_by": "human" },
+    { "id": "E-Cacioppo-2006", "claim": "sc-2", "source_id": "DOI:10.1037/0882-7974.21.1.140", "study_design": "cohort", "quote": "Loneliness predicts later depressive symptoms, net of confounders.", "extracted_by": "human" },
+    { "id": "E-HoltLunstad-2015", "claim": "sc-3", "source_id": "DOI:10.1177/1745691614568352", "study_design": "systematic_review_or_meta_analysis", "quote": "Loneliness OR 1.26 and social isolation OR 1.29 for mortality.", "extracted_by": "human" },
+    { "id": "E-HoltLunstad-2015b", "claim": "sc-4", "source_id": "DOI:10.1177/1745691614568352", "study_design": "systematic_review_or_meta_analysis", "quote": "Social isolation associated with a 29% increased likelihood of mortality.", "extracted_by": "human" },
+    { "id": "E-Penninkilampi-2018", "claim": "sc-5", "source_id": "DOI:10.3233/JAD-180439", "study_design": "systematic_review_or_meta_analysis", "quote": "Poor social engagement and loneliness were associated with an increased risk of dementia.", "extracted_by": "human" },
+
+    { "id": "E-Livingston-2020-hearing", "claim": "dc-1", "source_id": "DOI:10.1016/S0140-6736(20)30367-6", "study_design": "systematic_review_or_meta_analysis", "quote": "Hearing loss is the largest potentially modifiable risk factor for dementia (~8% of population attributable risk).", "extracted_by": "human" },
+    { "id": "E-Livingston-2020-depression", "claim": "dc-2", "source_id": "DOI:10.1016/S0140-6736(20)30367-6", "study_design": "systematic_review_or_meta_analysis", "quote": "Depression is among the 12 modifiable risk factors for dementia.", "extracted_by": "human" },
+    { "id": "E-Livingston-2020-activity", "claim": "dc-3", "source_id": "DOI:10.1016/S0140-6736(20)30367-6", "study_design": "systematic_review_or_meta_analysis", "quote": "Physical inactivity is a modifiable risk factor for dementia; physical activity is protective.", "extracted_by": "human" },
+    { "id": "E-Livingston-2020-social", "claim": "dc-4", "source_id": "DOI:10.1016/S0140-6736(20)30367-6", "study_design": "systematic_review_or_meta_analysis", "quote": "Infrequent social contact is a modifiable risk factor for dementia.", "extracted_by": "human" },
+    { "id": "E-Northey-2018", "claim": "dc-5", "source_id": "DOI:10.1136/bjsports-2016-096587", "study_design": "systematic_review_or_meta_analysis", "quote": "Physical exercise (aerobic and resistance) improved cognitive function in adults older than 50.", "extracted_by": "human" },
+    { "id": "E-Woolcott-2009", "claim": "dc-6", "source_id": "DOI:10.1001/archinternmed.2009.357", "study_design": "systematic_review_or_meta_analysis", "quote": "Sedatives and hypnotics were significantly associated with falls in older adults.", "extracted_by": "human" },
+    { "id": "E-Woolcott-2009-bzd", "claim": "dc-8", "source_id": "DOI:10.1001/archinternmed.2009.357", "study_design": "systematic_review_or_meta_analysis", "quote": "Benzodiazepine use was significantly associated with falls in older adults.", "extracted_by": "human" },
+
+    { "id": "E-CPS-Morris-1994", "claim": "ir-cps", "source_id": "DOI:10.1093/geronj/49.4.M174", "study_design": "cross_sectional", "quote": "The Cognitive Performance Scale (CPS) combines MDS items to classify nursing home residents into hierarchical cognitive performance categories.", "extracted_by": "human" },
+    { "id": "E-DRS-Burrows-2000", "claim": "ir-drs", "source_id": "DOI:10.1093/ageing/29.2.165", "study_design": "cross_sectional", "quote": "An MDS-based Depression Rating Scale; a cutpoint of 3 maximized sensitivity (94% vs the Hamilton scale) with acceptable specificity.", "extracted_by": "human" },
+    { "id": "E-ADLH-Morris-1999", "claim": "ir-adlh", "source_id": "DOI:10.1093/gerona/54.11.M546", "study_design": "cross_sectional", "quote": "ADL self-performance scales derived from MDS items, including the ADL Hierarchy reflecting loss of ADLs in the order of disablement.", "extracted_by": "human" },
+    { "id": "E-CHESS-Hirdes-2003", "claim": "ir-chess", "source_id": "DOI:10.1034/j.1601-5215.2002.51017.x", "study_design": "cohort", "quote": "The MDS-CHESS scale measures health instability and predicts mortality in institutionalized older people.", "extracted_by": "human" },
+    { "id": "E-PAIN-Fries-2001", "claim": "ir-pain", "source_id": "DOI:10.1093/geront/41.2.173", "study_design": "cross_sectional", "quote": "A pain scale derived from MDS items, validated against the Visual Analogue Scale (VAS).", "extracted_by": "human" }
+  ]
+}

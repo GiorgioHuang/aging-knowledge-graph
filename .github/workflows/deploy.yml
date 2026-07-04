@@ -1,0 +1,115 @@
+name: Deploy to Cloud Run
+
+# Manual by default; also on pushes to main. Cloud Run reaches Neon over open
+# egress; DATABASE_URL is injected from Secret Manager at deploy time (not from
+# GitHub). DB provisioning (npm run db:setup) is a separate one-off — see
+# docs/15-deployment.md.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write   # for keyless Workload Identity Federation
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          # Repo settings → Secrets and variables → Actions → Variables:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Ensure runtime SA can read secrets
+        # The Cloud Run revision/job runs as the default compute SA, which must
+        # have secretAccessor on each mounted secret. Grant it idempotently for
+        # whichever secrets exist so a newly-created secret never fails a deploy
+        # with "Permission denied on secret". Best-effort (deployer SA has
+        # secretmanager.admin via setup-gcp.sh); never fails the run.
+        run: |
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          NUM=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)' 2>/dev/null || true)
+          [ -z "$NUM" ] && { echo "::warning::could not resolve project number; skipping secret IAM"; exit 0; }
+          RUNTIME_SA="${NUM}-compute@developer.gserviceaccount.com"
+          for S in DATABASE_URL CURATOR_TOKEN ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
+            if gcloud secrets describe "$S" --project "$PROJECT" >/dev/null 2>&1; then
+              gcloud secrets add-iam-policy-binding "$S" --project "$PROJECT" \
+                --member "serviceAccount:${RUNTIME_SA}" \
+                --role roles/secretmanager.secretAccessor -q >/dev/null 2>&1 \
+                && echo "  granted accessor on $S" || echo "::warning::could not bind $S"
+            fi
+          done
+
+      - name: Deploy
+        run: |
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          # Mount secrets that exist. CURATOR_TOKEN enables the write path / review
+          # actions; it's optional, so include it only when present (its runtime SA
+          # must have roles/secretmanager.secretAccessor on the secret).
+          SECRETS="DATABASE_URL=DATABASE_URL:latest"
+          if gcloud secrets describe CURATOR_TOKEN --project "$PROJECT" >/dev/null 2>&1; then
+            SECRETS="$SECRETS,CURATOR_TOKEN=CURATOR_TOKEN:latest"
+          else
+            echo "::notice::CURATOR_TOKEN secret not found — deploying read-only (no write path)."
+          fi
+          # The review console's "Re-verify & fix" calls the LLM from the service.
+          if gcloud secrets describe ANTHROPIC_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
+            SECRETS="$SECRETS,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+          fi
+          # Contact-form → Telegram push (both must exist to enable it).
+          if gcloud secrets describe TELEGRAM_BOT_TOKEN --project "$PROJECT" >/dev/null 2>&1 \
+             && gcloud secrets describe TELEGRAM_CHAT_ID --project "$PROJECT" >/dev/null 2>&1; then
+            SECRETS="$SECRETS,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,TELEGRAM_CHAT_ID=TELEGRAM_CHAT_ID:latest"
+          else
+            echo "::notice::TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID secret(s) not found — contact form will store messages without a Telegram push."
+          fi
+          gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE || 'graceage-knowledge' }}" \
+            --source . \
+            --project "$PROJECT" \
+            --region "${{ vars.GCP_REGION || 'us-east1' }}" \
+            --allow-unauthenticated \
+            --port 8080 \
+            --update-secrets "$SECRETS"
+
+      - name: Deploy agents Job
+        # Keeps the Curator + Reviewer Cloud Run Job (scripts/agent-run.ts) in
+        # sync. It REUSES the service's Dockerfile-built image (node:22-slim has
+        # node on PATH + scripts/ copied) rather than --source (buildpacks), whose
+        # launcher PATH is bypassed by --command and fails with "exec failed".
+        # Needs the ANTHROPIC_API_KEY secret; skips cleanly until it exists (create
+        # it + the Scheduler trigger once via scripts/deploy-agents.sh).
+        run: |
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          REGION="${{ vars.GCP_REGION || 'us-east1' }}"
+          JOB="${{ vars.AGENTS_JOB || 'graceage-agents' }}"
+          SERVICE="${{ vars.CLOUD_RUN_SERVICE || 'graceage-knowledge' }}"
+          if ! gcloud secrets describe ANTHROPIC_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
+            echo "::notice::ANTHROPIC_API_KEY secret not found — skipping agents Job deploy. Run scripts/deploy-agents.sh once to enable it."
+            exit 0
+          fi
+          IMAGE=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
+          if [ -z "$IMAGE" ]; then echo "::warning::could not resolve service image; skipping agents Job"; exit 0; fi
+          gcloud run jobs deploy "$JOB" \
+            --image "$IMAGE" \
+            --project "$PROJECT" \
+            --region "$REGION" \
+            --command node \
+            --args="--experimental-strip-types,scripts/agent-run.ts" \
+            --cpu 1 --memory 512Mi --max-retries 1 --task-timeout 1800s \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
+            --set-env-vars "CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }}"
+
+      - name: Show URL
+        run: |
+          gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE || 'graceage-knowledge' }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" --region "${{ vars.GCP_REGION || 'us-east1' }}" \
+            --format='value(status.url)'

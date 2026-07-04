@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/favicon.svg" />
+<title>GraceAge Knowledge — Browse claims</title>
+<style>
+  :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --err:#ff6b6b; --header:#eef3f1; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
+  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  header .brand { flex: 0 0 auto; display: flex; }
+  header .brand img { width: 40px; height: 40px; display: block; }
+  header h1 { margin: 0; font-size: 18px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
+  main { max-width: 920px; margin: 0 auto; padding: 20px; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  select, input { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background:var(--surface); color:var(--fg); }
+  .hint { font-size: 12px; color: var(--muted); }
+  .card { background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:10px; padding:12px 14px; margin:0 0 12px; }
+  .card.conflict { border-left-color:#c1121f; }
+  .claim { font-size:15px; font-weight:600; } .claim .rel { color:var(--accent); } .claim.conflict .rel { color:#c1121f; }
+  .badges { margin:5px 0; } .badge { display:inline-block; font-size:11px; padding:2px 7px; border-radius:20px; background:#eef; color:#334; margin-right:5px; }
+  .badge.cur { background:#e6f4ea; color:#1e6b3a; } .badge.unv { background:#fff3e0; color:#9a6700; } .badge.nr { background:#fce8e6; color:#b00020; }
+  .qb { display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; margin-right:5px; cursor:help; }
+  .q-high { background:#0e3a2a; color:#7ee0a3; } .q-moderate { background:#123a34; color:#7fd3c3; }
+  .q-low { background:#3a3016; color:#e6c877; } .q-very_low { background:#3a2020; color:#e79b9b; }
+  .ev { font-size:13px; border-top:1px dashed var(--line); padding:5px 0; }
+  .ev a { color:var(--accent); } .ev .q { color:var(--muted); font-style:italic; }
+  .empty { color:var(--muted); padding:20px; text-align:center; }
+  #count { font-size:13px; color:var(--muted); }
+  .pager { display:flex; gap:10px; align-items:center; justify-content:center; margin:16px 0 4px; flex-wrap:wrap; }
+  .pager button { background:var(--surface); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
+  .pager button:disabled { opacity:.45; cursor:default; }
+  .pager .pinfo { font-size:13px; color:var(--muted); }
+  .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
+  .site-footer a { color: var(--accent); }
+  .site-footer .fnav { margin: 6px 0; }
+  .site-footer .fnote { font-size: 12px; opacity: .85; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/" title="GraceAge Knowledge Lab"><img src="/logo-mark.svg" alt="GraceAge Knowledge Lab" /></a>
+  <div>
+    <h1>GraceAge Knowledge — Browse claims</h1>
+    <small>Read-only · clickable citations · <a href="/">home</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
+  </div>
+</header>
+<main>
+  <div class="controls">
+    <label class="hint">status
+      <select id="status" onchange="load()">
+        <option value="curated">curated</option>
+        <option value="needs_refinement">needs_refinement</option>
+        <option value="unverified">unverified</option>
+        <option value="all">all</option>
+      </select>
+    </label>
+    <input id="q" placeholder="filter by concept…" oninput="onFilter()" style="flex:1;min-width:180px" />
+    <span id="count"></span>
+  </div>
+  <div id="list"><p class="empty">Loading…</p></div>
+  <div id="pager" class="pager"></div>
+
+  <footer class="site-footer">
+    <div>An open, evidence-traceable knowledge graph for healthy aging · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
+    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
+    <div class="fnote">Not medical advice — a research and educational tool. Consult qualified professionals for health decisions.</div>
+    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL)</div>
+    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
+  </footer>
+</main>
+<script>
+const $ = (s) => document.getElementById(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+let PAGE = 1, TOTAL = 0, searchTimer = null;
+const PER = 10;
+
+function citeLink(id) {
+  if (/^PMID:/i.test(id)) return "https://pubmed.ncbi.nlm.nih.gov/" + id.replace(/^PMID:/i, "").trim() + "/";
+  if (/^DOI:/i.test(id)) return "https://doi.org/" + id.replace(/^DOI:/i, "").trim();
+  if (/^https?:\/\//i.test(id)) return id;
+  return null;
+}
+const statusBadge = (s) => `<span class="badge ${s === 'curated' ? 'cur' : s === 'needs_refinement' ? 'nr' : s === 'unverified' ? 'unv' : ''}">${esc(s)}</span>`;
+function qualityBadge(q) {
+  if (!q) return "";
+  const title = "Evidence strength (GRADE-informed) — " + (q.reasons || []).join(" · ");
+  return '<span class="qb q-' + q.tier + '" title="' + esc(title) + '">strength ' + esc(String(q.tier).replace("_", " ")) + " · " + q.score + "</span>";
+}
+
+// Server-side pagination: the DB does status + concept filtering + counting, so
+// the total is always correct (not capped by the page size) and every page is
+// reachable regardless of how many claims exist.
+async function fetchPage() {
+  fetch("/health").then(r => r.json()).then(h => $("backend").textContent = h.backend).catch(() => {});
+  const params = new URLSearchParams({ status: $("status").value, q: ($("q").value || "").trim(), limit: String(PER), offset: String((PAGE - 1) * PER) });
+  try {
+    const data = await fetch("/review/queue?" + params).then(r => r.ok ? r.json() : Promise.reject(r.status));
+    TOTAL = data.total || 0;
+    const items = data.items || [];
+    const pages = Math.max(1, Math.ceil(TOTAL / PER));
+    if (PAGE > pages) { PAGE = pages; return fetchPage(); }   // clamp after a filter shrinks the set
+    $("count").textContent = TOTAL + " claim(s)";
+    $("list").innerHTML = items.length ? items.map(card).join("") : '<p class="empty">No matching claims.</p>';
+    renderPager(pages);
+  } catch (e) {
+    $("list").innerHTML = '<p class="empty">Needs a database to browse claims (status ' + e + ').</p>';
+    $("count").textContent = ""; $("pager").innerHTML = "";
+  }
+}
+
+function load() { PAGE = 1; fetchPage(); }                 // initial / status change
+function onFilter() { clearTimeout(searchTimer); searchTimer = setTimeout(() => { PAGE = 1; fetchPage(); }, 300); }
+function goPage(p) { PAGE = p; fetchPage(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+function renderPager(pages) {
+  if (pages <= 1) { $("pager").innerHTML = ""; return; }
+  const from = (PAGE - 1) * PER + 1, to = Math.min(PAGE * PER, TOTAL);
+  $("pager").innerHTML =
+    '<button ' + (PAGE <= 1 ? "disabled" : "") + ' onclick="goPage(' + (PAGE - 1) + ')">‹ Prev</button>' +
+    '<span class="pinfo">' + from + '–' + to + ' of ' + TOTAL + ' · page ' + PAGE + ' / ' + pages + '</span>' +
+    '<button ' + (PAGE >= pages ? "disabled" : "") + ' onclick="goPage(' + (PAGE + 1) + ')">Next ›</button>';
+}
+
+function card(it) {
+  const rel = esc(it.type.replace(/_/g, " ")) + (it.direction ? " (" + esc(it.direction) + ")" : "");
+  const ev = (it.evidence || []).map(e => {
+    const link = citeLink(e.source_id);
+    const id = link ? '<a href="' + link + '" target="_blank" rel="noopener">' + esc(e.source_id) + "</a>" : esc(e.source_id);
+    const sd = e.study_design ? ' <span class="badge">' + esc(e.study_design) + "</span>" : "";
+    const q = e.quote ? '<div class="q">“' + esc(e.quote) + "”</div>" : "";
+    return '<div class="ev">' + id + sd + q + "</div>";
+  }).join("") || '<div class="ev hint">no citation</div>';
+  const meta = [it.population && ("in " + it.population.name), it.certainty].filter(Boolean)
+    .map(x => '<span class="badge">' + esc(x) + "</span>").join("");
+  const rv = it.review && it.review.reason ? '<div class="ev hint">reviewer: ' + esc(it.review.reason) + "</div>" : "";
+  return '<div class="card">' +
+    '<div class="claim">' + esc(it.subject.name) + ' <span class="rel">[' + rel + "]</span> " + esc(it.object.name) + "</div>" +
+    '<div class="badges">' + qualityBadge(it.quality) + statusBadge(it.status) + meta + ' <code class="hint">' + esc(it.id) + "</code></div>" +
+    ev + rv + "</div>";
+}
+load();
+</script>
+</body>
+</html>

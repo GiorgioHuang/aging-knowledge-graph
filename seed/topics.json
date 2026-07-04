@@ -1,0 +1,26 @@
+{
+  "_comment": "Topic queue that seeds continuous expansion by the Curator agent (src/curator.ts). Each topic drives one extraction pass; higher priority is pulled first. Edit/extend this list, or POST topics to the queue, to steer what the graph grows toward. These are starting points across the healthy-aging domains in seed/ontology.json.",
+  "topics": [
+    { "topic": "Physical activity and exercise for fall prevention in older adults", "priority": 10 },
+    { "topic": "Resistance/strength training for sarcopenia and muscle mass in aging", "priority": 9 },
+    { "topic": "Modifiable risk factors for dementia and cognitive decline", "priority": 9 },
+    { "topic": "Social isolation and loneliness: effects on mortality and mental health in older adults", "priority": 8 },
+    { "topic": "Mediterranean and other dietary patterns for cardiovascular and cognitive aging", "priority": 8 },
+    { "topic": "Vitamin D and calcium supplementation for bone health and fractures", "priority": 7 },
+    { "topic": "Sleep quality and duration in relation to cognition and frailty", "priority": 7 },
+    { "topic": "Polypharmacy and potentially inappropriate medications in the elderly", "priority": 7 },
+    { "topic": "Frailty: screening, assessment scales, and interventions", "priority": 7 },
+    { "topic": "Hearing loss and vision impairment as risk factors for decline", "priority": 6 },
+    { "topic": "Depression and anxiety in late life: screening and treatment", "priority": 6 },
+    { "topic": "Cognitive training and lifestyle interventions for brain health", "priority": 6 },
+    { "topic": "Hypertension and blood pressure management in older adults", "priority": 6 },
+    { "topic": "Protein intake and nutrition for preventing muscle loss", "priority": 6 },
+    { "topic": "Smoking cessation and alcohol reduction benefits in older age", "priority": 5 },
+    { "topic": "Vaccination (influenza, pneumococcal, shingles) in older adults", "priority": 5 },
+    { "topic": "Balance and tai chi interventions for stability and falls", "priority": 5 },
+    { "topic": "Diabetes management and glycemic control in elderly populations", "priority": 5 },
+    { "topic": "Caregiver support interventions and outcomes", "priority": 4 },
+    { "topic": "Digital health and technology for aging in place", "priority": 4 },
+    { "topic": "interRAI/MDS assessment scales for older adults (CPS, DRS, CHESS, ADL Hierarchy, Pain Scale, MAPLe): validation studies and what each scale measures", "priority": 8 }
+  ]
+}

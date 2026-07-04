@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/favicon.svg" />
+<title>GraceAge Knowledge — Review</title>
+<style>
+  :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --err:#ff6b6b; --warn:#b26a00; --header:#eef3f1; }
+  * { box-sizing: border-box; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
+  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  header .brand { flex: 0 0 auto; display: flex; }
+  header .brand img { width: 40px; height: 40px; display: block; }
+  header h1 { margin: 0; font-size: 18px; } header small { color:#4a5d58; }
+  header a { color:#0a6e5c; } main { max-width: 920px; margin: 0 auto; padding: 20px; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin: 0 0 18px; padding: 14px 16px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  input, select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background:var(--surface); color:var(--fg); }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 7px 13px; font: inherit; cursor: pointer; }
+  button.secondary { background: #26332f; color: var(--fg); } button.danger { background: #b00020; }
+  button.mini { padding: 3px 9px; font-size: 13px; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; }
+  .stat { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:8px 12px; min-width:96px; }
+  .stat b { display:block; font-size:20px; } .stat span { font-size:12px; color:var(--muted); }
+  .card { background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--warn); border-radius:10px; padding:14px 16px; margin:0 0 14px; }
+  .claim { font-size:16px; font-weight:600; } .claim .rel { color:var(--accent); }
+  .badges { margin:6px 0; } .badge { display:inline-block; font-size:11px; padding:2px 7px; border-radius:20px; background:#eef; color:#334; margin-right:5px; }
+  .badge.ok { background:#e6f4ea; color:#1e6b3a; } .badge.bad { background:#fce8e6; color:#b00020; }
+  .qb { display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600; margin-right:5px; cursor:help; }
+  .q-high { background:#0e3a2a; color:#7ee0a3; } .q-moderate { background:#123a34; color:#7fd3c3; }
+  .q-low { background:#3a3016; color:#e6c877; } .q-very_low { background:#3a2020; color:#e79b9b; }
+  .reason { background:#241f12; border:1px solid #4a3f1c; color:#ecd9a6; border-radius:8px; padding:8px 10px; margin:8px 0; font-size:14px; }
+  .ev { font-size:13px; border-top:1px dashed var(--line); padding:6px 0; }
+  .ev a { color:var(--accent); } .ev .q { color:var(--muted); font-style:italic; }
+  .actions { margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .msg { font-size:13px; } .msg.ok { color:var(--accent); } .msg.err { color:var(--err); }
+  .empty { color:var(--muted); padding:20px; text-align:center; }
+  .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
+  .site-footer a { color: var(--accent); }
+  .site-footer .fnav { margin: 6px 0; }
+  .site-footer .fnote { font-size: 12px; opacity: .85; }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/" title="GraceAge Knowledge Lab"><img src="/logo-mark.svg" alt="GraceAge Knowledge Lab" /></a>
+  <div>
+    <h1>GraceAge Knowledge — Human Review</h1>
+    <small>The "exceptions to humans" queue · <a href="/">home</a> · <a href="/browse">browse</a> · <a href="/admin">curation</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
+  </div>
+</header>
+<main>
+
+  <fieldset>
+    <legend>Agent models</legend>
+    <div id="models" class="hint">Loading…</div>
+    <p class="hint">Each agent can use a different model. Saved to the database; takes effect on the next agent run.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Recent questions (Q&amp;A log)</legend>
+    <p style="margin:0 0 8px"><button class="secondary" onclick="loadAskLog()">Load recent Q&amp;A</button>
+       <button class="secondary" onclick="gapTopics()" title="Judge unanswered questions for relevance and queue the in-scope ones as curation topics">Turn gaps into topics</button>
+       <span class="hint">Rows flagged <b>no evidence</b> are questions the graph couldn't answer — the relevance-gated ones become topics.</span></p>
+    <div id="asklog" class="hint">Not loaded.</div>
+  </fieldset>
+
+  <div class="stats" id="stats"></div>
+  <p style="margin:14px 0 8px"><button class="secondary" onclick="load()">Refresh</button>
+     <button class="secondary" onclick="dedupe()" title="Find and merge duplicate edges (same subject/relationship/object/direction)">Merge duplicate edges</button>
+     <button class="secondary" onclick="requeueFailed()" title="Reset failed topics to pending so they retry next run">Re-queue failed topics</button>
+     <span class="hint">Showing claims flagged <code>needs_refinement</code> by the reviewer agent.</span></p>
+
+  <p id="flash" class="msg" style="min-height:18px"></p>
+  <div id="queue"><p class="empty">Loading…</p></div>
+
+  <footer class="site-footer">
+    <div>Curator console · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
+    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/admin">curation</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
+    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL)</div>
+    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
+  </footer>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+
+function citeLink(id) {
+  if (/^PMID:/i.test(id)) return "https://pubmed.ncbi.nlm.nih.gov/" + id.replace(/^PMID:/i, "").trim() + "/";
+  if (/^DOI:/i.test(id)) return "https://doi.org/" + id.replace(/^DOI:/i, "").trim();
+  if (/^https?:\/\//i.test(id)) return id;
+  return null;
+}
+function qualityBadge(q) {
+  if (!q) return "";
+  const title = "Evidence strength (GRADE-informed) — " + (q.reasons || []).join(" · ");
+  return '<span class="qb q-' + q.tier + '" title="' + esc(title) + '">strength ' + esc(String(q.tier).replace("_", " ")) + " · " + q.score + "</span>";
+}
+
+async function loadAskLog() {
+  const box = $("#asklog");
+  box.className = "hint"; box.textContent = "loading…";
+  try {
+    const rows = await fetch("/ask/log?limit=50", { headers: {} })
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status));
+    renderAskLog(rows);
+  } catch (e) { box.className = "hint err"; box.textContent = "failed to load Q&A log (" + e + ")"; }
+}
+function renderAskLog(rows) {
+  const box = $("#asklog");
+  if (!rows || !rows.length) { box.className = "hint"; box.textContent = "No questions logged yet."; return; }
+  const gaps = rows.filter((r) => r.ok && !r.num_claims).length;
+  const errs = rows.filter((r) => !r.ok).length;
+  const tokens = rows.reduce((s, r) => s + (r.input_tokens || 0) + (r.output_tokens || 0), 0);
+  box.className = "";
+  box.innerHTML =
+    '<div class="hint" style="margin-bottom:8px">' + rows.length + " recent · <b>" + gaps + "</b> with no matching evidence (gaps)" +
+      (errs ? " · " + errs + " error(s)" : "") + (tokens ? " · " + tokens.toLocaleString() + " tokens" : "") + "</div>" +
+    rows.map(askRow).join("");
+}
+function askRow(r) {
+  const gap = r.ok && !r.num_claims;
+  const badge = !r.ok ? '<span class="badge bad">error</span>'
+    : gap ? '<span class="badge bad">no evidence</span>'
+    : '<span class="badge ok">' + r.num_claims + " claim" + (r.num_claims === 1 ? "" : "s") + "</span>";
+  const cites = (r.citations || []).length ? ' <span class="badge">' + r.citations.length + " cite" + (r.citations.length === 1 ? "" : "s") + "</span>" : "";
+  const gs = r.gap_status === "queued" ? ' <span class="badge ok">→ topic queued</span>'
+    : r.gap_status === "rejected" ? ' <span class="badge">→ off-topic</span>' : "";
+  const when = r.created_at ? new Date(r.created_at).toLocaleString() : "";
+  const tok = (r.input_tokens || r.output_tokens) ? ((r.input_tokens || 0) + (r.output_tokens || 0)) + " tok" : "";
+  const metaHint = [when, r.latency_ms ? r.latency_ms + "ms" : "", tok, r.model, r.ip].filter(Boolean).map(esc).join(" · ");
+  const detail = r.answer
+    ? "<details><summary class=\"hint\">answer</summary><div class=\"ev\">" + esc(r.answer) + "</div></details>"
+    : (r.error ? '<div class="ev hint">' + esc(r.error) + "</div>" : "");
+  return '<div class="card" style="border-left-color:' + (gap || !r.ok ? "#b00020" : "var(--accent)") + '">' +
+    '<div class="claim" style="font-size:14px">' + esc(r.question) + "</div>" +
+    '<div class="badges">' + badge + cites + gs + ' <span class="hint">' + metaHint + "</span></div>" +
+    detail + "</div>";
+}
+async function gapTopics() {
+  const flash = $("#flash");
+  flash.className = "msg"; flash.textContent = "judging unanswered questions for relevance…";
+  try {
+    const r = await fetch("/admin/gap-topics", { method: "POST", headers: {} }).then((x) => x.json());
+    flash.className = "msg ok";
+    flash.textContent = "✓ Gap triage: scanned " + (r.scanned || 0) + " · queued " + (r.queued || 0) + " topic(s), rejected " + (r.rejected || 0) +
+      (r.topics && r.topics.length ? " — e.g. " + r.topics.slice(0, 3).join("; ") : "");
+    loadAskLog();
+  } catch (e) { flash.className = "msg err"; flash.textContent = e.message; }
+}
+
+async function load() {
+  fetch("/agents/config").then((r) => r.json()).then(renderModels).catch(() => {});
+  loadAskLog();
+  try {
+    const [stats, queue] = await Promise.all([
+      fetch("/review/stats").then((r) => r.ok ? r.json() : null),
+      fetch("/review/queue?limit=100").then((r) => r.json()),
+    ]);
+    renderStats(stats);
+    renderQueue(queue.items || []);
+  } catch (e) {
+    $("#queue").innerHTML = '<p class="empty err">Failed to load (needs a database): ' + esc(e.message) + "</p>";
+  }
+}
+
+function renderModels(cfg) {
+  if (!cfg || !cfg.agents) return;
+  const opts = (sel) => cfg.known.map((m) =>
+    '<option value="' + esc(m.id) + '"' + (m.id === sel ? " selected" : "") + ">" + esc(m.label) + (m.note ? " — " + esc(m.note) : "") + "</option>").join("") +
+    (cfg.known.some((m) => m.id === sel) ? "" : '<option value="' + esc(sel) + '" selected>' + esc(sel) + " (custom)</option>");
+  const row = (a) =>
+    '<div style="display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap">' +
+      '<b style="min-width:80px;text-transform:capitalize">' + esc(a.agent) + "</b>" +
+      '<select id="model-' + esc(a.agent) + '">' + opts(a.model) + "</select>" +
+      '<span class="badge">' + esc(a.source) + "</span>" +
+    "</div>";
+  $("#models").innerHTML = cfg.agents.map(row).join("") +
+    '<div style="margin-top:8px"><button class="mini" onclick="saveModels()">Save models</button> ' +
+    '<span class="msg" id="model-msg"></span></div>' +
+    (cfg.dbAvailable ? "" : '<div class="hint err" style="margin-top:6px">No database connected — showing env/default only; saving is disabled.</div>');
+}
+
+async function saveModels() {
+  const msg = $("#model-msg");
+  const body = {};
+  document.querySelectorAll('[id^="model-"]').forEach((el) => {
+    if (el.tagName === "SELECT") body[el.id.slice("model-".length)] = el.value;
+  });
+  msg.className = "msg"; msg.textContent = "…";
+  try {
+    const res = await fetch("/agents/config", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const cfg = await res.json().catch(() => ({}));
+    if (!res.ok) { msg.className = "msg err"; msg.textContent = (cfg.errors || [cfg.error || res.status]).join("; "); return; }
+    renderModels(cfg);
+    $("#model-msg").className = "msg ok"; $("#model-msg").textContent = "saved · effective next run";
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = e.message;
+  }
+}
+
+async function refreshStats() {
+  try { renderStats(await fetch("/review/stats").then((r) => r.ok ? r.json() : null)); } catch { /* ignore */ }
+}
+
+function renderStats(s) {
+  $("#backend").textContent = s ? "neon" : "seed (no DB)";
+  if (!s) { $("#stats").innerHTML = ""; return; }
+  const st = s.byStatus || {};
+  const cell = (n, label) => '<div class="stat"><b>' + (n ?? 0) + "</b><span>" + label + "</span></div>";
+  $("#stats").innerHTML =
+    cell(s.queue, "needs review") + cell(st.curated, "curated") + cell(st.unverified, "unverified") +
+    cell(s.nodes, "nodes") + cell(s.papers, "paper nodes") + cell(s.pendingTopics, "pending topics");
+}
+
+function renderQueue(items) {
+  if (!items || !items.length) { $("#queue").innerHTML = '<p class="empty">🎉 Nothing awaiting review.</p>'; return; }
+  $("#queue").innerHTML = items.map(card).join("");
+}
+
+function card(it) {
+  const rel = esc(it.type.replace(/_/g, " "));
+  const dir = it.direction ? ' <span class="badge">' + esc(it.direction) + "</span>" : "";
+  const pop = it.population ? ' <span class="badge">in ' + esc(it.population.name) + "</span>" : "";
+  const cert = it.certainty ? ' <span class="badge">' + esc(it.certainty) + "</span>" : "";
+  const resolved = new Map((it.review && it.review.citations || []).map((c) => [c.source_id, c.resolved]));
+  const ev = (it.evidence || []).map((e) => {
+    const link = citeLink(e.source_id);
+    const id = link ? '<a href="' + link + '" target="_blank" rel="noopener">' + esc(e.source_id) + "</a>" : esc(e.source_id);
+    const r = resolved.get(e.source_id);
+    const badge = r === undefined ? "" : (r ? ' <span class="badge ok">resolved</span>' : ' <span class="badge bad">did not resolve</span>');
+    const sd = e.study_design ? ' <span class="badge">' + esc(e.study_design) + "</span>" : "";
+    const q = e.quote ? '<div class="q">“' + esc(e.quote) + "”</div>" : "";
+    return '<div class="ev">' + id + badge + sd + q + "</div>";
+  }).join("");
+  const rv = it.review || {};
+  const reason = (rv.verdict || rv.reason)
+    ? '<div class="reason"><b>Reviewer: ' + esc(rv.verdict || "?") + "</b> — " + esc(rv.reason || "(no reason recorded)") + "</div>"
+    : '<div class="reason hint">No reviewer rationale on record.</div>';
+  return '<div class="card" id="card-' + esc(it.id) + '">' +
+    '<div class="claim">' + esc(it.subject.name) + ' <span class="rel">[' + rel + "]</span> " + esc(it.object.name) + "</div>" +
+    '<div class="badges">' + qualityBadge(it.quality) + '<span class="badge">' + esc(it.status) + "</span>" + dir + pop + cert + ' <code class="hint">' + esc(it.id) + "</code></div>" +
+    reason + ev +
+    '<div class="actions">' +
+      "Set certainty: <select id=\"cert-" + esc(it.id) + "\"><option value=\"\">— keep —</option><option>high</option><option>moderate</option><option>low</option><option>very_low</option></select> " +
+      '<button class="mini" onclick="decide(\'' + esc(it.id) + "', 'approve')\">Approve → curated</button> " +
+      '<button class="mini secondary" onclick="repair(\'' + esc(it.id) + "')\" title=\"Let the agent re-identify the correct paper, verify it, and re-review\">Re-verify &amp; fix</button> " +
+      '<button class="mini danger" onclick="decide(\'' + esc(it.id) + "', 'reject')\">Reject (delete)</button> " +
+      '<a class="mini" href="/admin" title="Edit in the curation UI">edit…</a>' +
+      ' <span class="msg" id="msg-' + esc(it.id) + '"></span>' +
+    "</div></div>";
+}
+
+async function decide(id, action) {
+  const msg = $("#msg-" + cssEscape(id));
+  if (action === "reject" && !confirm("Delete this claim and its evidence? This cannot be undone.")) return;
+  const certainty = action === "approve" ? ($("#cert-" + cssEscape(id)) || {}).value : undefined;
+  msg.className = "msg"; msg.textContent = "…";
+  try {
+    const res = await fetch("/review/" + encodeURIComponent(id) + "/" + action, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(certainty ? { certainty } : {}),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { msg.className = "msg err"; msg.textContent = (body.errors || [body.error || res.status]).join("; "); return; }
+    const cardEl = $("#card-" + cssEscape(id));
+    if (cardEl) cardEl.remove();
+    const flash = $("#flash"); flash.className = "msg ok";
+    flash.textContent = (action === "approve" ? "✓ Approved → curated: " : "✓ Rejected (deleted): ") + id;
+    refreshStats();
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = e.message;
+  }
+}
+async function dedupe() {
+  const flash = $("#flash");
+  flash.className = "msg"; flash.textContent = "scanning for duplicate edges…";
+  const run = (apply) => fetch("/admin/dedup?apply=" + apply, { method: "POST", headers: {} }).then((r) => r.json());
+  try {
+    const dry = await run("false");
+    if (!dry || !dry.edges_merged) { flash.className = "msg ok"; flash.textContent = "✓ No duplicate edges found."; return; }
+    if (!confirm("Merge " + dry.edges_merged + " duplicate edge group(s)? This deletes " + dry.claims_deleted + " duplicate claim(s) and moves " + dry.evidence_moved + " evidence row(s) onto the kept edges. Cannot be undone.")) {
+      flash.className = "msg"; flash.textContent = "Cancelled — " + dry.edges_merged + " duplicate group(s) left untouched.";
+      return;
+    }
+    const r = await run("true");
+    flash.className = "msg ok";
+    flash.textContent = "✓ Merged " + r.edges_merged + " edge group(s): deleted " + r.claims_deleted + " claim(s), moved " + r.evidence_moved + " evidence, dropped " + r.evidence_dropped + " duplicate.";
+    load();
+  } catch (e) { flash.className = "msg err"; flash.textContent = e.message; }
+}
+
+async function requeueFailed() {
+  const flash = $("#flash");
+  flash.className = "msg"; flash.textContent = "re-queueing failed topics…";
+  try {
+    const r = await fetch("/admin/requeue-failed", { method: "POST", headers: {} }).then((x) => x.json());
+    flash.className = "msg ok"; flash.textContent = "✓ Re-queued " + (r.requeued || 0) + " failed topic(s) → pending (will retry next agent run)";
+    refreshStats();
+  } catch (e) { flash.className = "msg err"; flash.textContent = e.message; }
+}
+
+async function repair(id) {
+  const msg = $("#msg-" + cssEscape(id));
+  msg.className = "msg"; msg.textContent = "re-verifying… (querying PubMed/Crossref)";
+  try {
+    const res = await fetch("/review/" + encodeURIComponent(id) + "/repair", {
+      method: "POST",
+    });
+    const b = await res.json().catch(() => ({}));
+    if (!res.ok) { msg.className = "msg err"; msg.textContent = (b.errors || [b.error || res.status]).join("; "); return; }
+    const flash = $("#flash");
+    if (b.status === "curated") {
+      flash.className = "msg ok";
+      flash.textContent = "✓ " + id + (b.repaired ? " fixed → " + b.source : " (citation already correct)") + " · now curated";
+      load(); // curated leaves the queue; flash persists
+    } else if (b.repaired) {
+      flash.className = "msg ok";
+      flash.textContent = "Fixed " + id + " → " + b.source + " · re-reviewed: still needs_refinement (see its reason)";
+      load();
+    } else if (b.status === "needs_refinement") {
+      // citation was already correct — flagged on substance, not a wrong id
+      flash.className = "msg";
+      flash.textContent = "ℹ " + id + ": " + (b.reason || "citation already correct; still flagged on substance — read the reviewer's reason on the card");
+      load();
+    } else {
+      const why = (b.details || []).map((d) => d.note).filter(Boolean).join("; ");
+      msg.className = "msg err"; msg.textContent = (b.reason || "no verifiable source") + (why ? " — " + why : "");
+    }
+  } catch (e) { msg.className = "msg err"; msg.textContent = e.message; }
+}
+function cssEscape(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/[^a-zA-Z0-9_-]/g, "\\$&"); }
+
+load();
+</script>
+</body>
+</html>
