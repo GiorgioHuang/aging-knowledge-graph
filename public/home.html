@@ -173,7 +173,7 @@ function drawGraph() {
   nodes.forEach(setR);
 
   const view = { tx: 0, ty: 0, k: 1 };
-  let alpha = 1, dragging = null, hoverId = null, selId = null, running = false;
+  let alpha = 1, alphaFloor = 0, dragging = null, hoverId = null, selId = null, running = false;
   const CELL = 80, CELL2 = CELL * CELL, STOP = 0.01;
   const focus = () => selId || hoverId;
 
@@ -195,10 +195,13 @@ function drawGraph() {
     }
     ctx.setLineDash([]);
 
-    // nodes — colour = type, white ring; dimmed when a focus neighbourhood is set
+    // nodes — colour = type, white ring; dimmed when a focus neighbourhood is set;
+    // freshly-streamed context nodes ease in (scale + fade) via n.grow 0→1
     for (const n of nodes) {
-      ctx.globalAlpha = !near || near.has(n.id) ? 1 : 0.2;
-      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      const g = n.grow === undefined ? 1 : n.grow;
+      const base = !near || near.has(n.id) ? 1 : 0.2;
+      ctx.globalAlpha = base * g;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r * (0.4 + 0.6 * g), 0, Math.PI * 2);
       ctx.fillStyle = n.color; ctx.fill();
       ctx.lineWidth = 1.5 / view.k; ctx.strokeStyle = "#fff"; ctx.stroke();
     }
@@ -243,7 +246,9 @@ function drawGraph() {
       }
     }
     edges.forEach(e => { const a = e.a, b = e.b; let dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx,dy) || 1, f = (d-95) * 0.045 * alpha; if (!a.pinned) { a.vx += dx/d*f; a.vy += dy/d*f; } if (!b.pinned) { b.vx -= dx/d*f; b.vy -= dy/d*f; } });
+    let growing = false;
     nodes.forEach(n => {
+      if (n.grow !== undefined && n.grow < 1) { n.grow = Math.min(1, n.grow + 0.06); growing = true; }
       if (n.pinned) { n.vx = n.vy = 0; return; }       // the settled core holds still while context loads
       n.vx += (W/2 - n.x) * 0.002 * alpha; n.vy += (H/2 - n.y) * 0.002 * alpha;
       if (n !== dragging) { n.x += n.vx * 0.85; n.y += n.vy * 0.85; }
@@ -251,7 +256,8 @@ function drawGraph() {
     });
     draw();
     alpha *= 0.985;
-    if (alpha > STOP || dragging) RAF = requestAnimationFrame(tick); else running = false;
+    if (alpha < alphaFloor) alpha = alphaFloor;          // gentle continuous motion while streaming (no throb)
+    if (alpha > STOP || alphaFloor > 0 || dragging || growing) RAF = requestAnimationFrame(tick); else running = false;
   }
 
   function updateLegend() {
@@ -266,10 +272,11 @@ function drawGraph() {
   // NOT move), then adds context nodes a batch at a time with a gap between
   // batches, so the main thread stays responsive instead of freezing.
   let contextOn = false, ctxGen = 0;
-  const BATCH = 60, DELAY = 90;
+  const BATCH = 24, DELAY = 55;
   function loadContext() {
     if (contextOn) return; contextOn = true;
     const gen = ++ctxGen;
+    alphaFloor = 0.12;                                  // keep the sim gently running for smooth, continuous motion
     nodes.forEach(n => { if (!n.isContext) n.pinned = true; });
     const ctxAdj = {};
     (GRAPH.contextEdges || []).forEach(e => { (ctxAdj[e.source] = ctxAdj[e.source] || []).push(e.target); (ctxAdj[e.target] = ctxAdj[e.target] || []).push(e.source); });
@@ -285,8 +292,8 @@ function drawGraph() {
       for (const n of slice) {
         const anchorId = (ctxAdj[n.id] || []).find(id => idx[id]);
         const A = anchorId ? idx[anchorId] : null;
-        const ang = Math.random() * 6.283, rad = 30 + Math.random() * 50;
-        const o = { ...n, x: (A ? A.x : W/2) + Math.cos(ang)*rad, y: (A ? A.y : H/2) + Math.sin(ang)*rad, vx: 0, vy: 0, color: COLORS[n.type] || "#999", isContext: true, pinned: false };
+        const ang = Math.random() * 6.283, rad = 24 + Math.random() * 40;
+        const o = { ...n, x: (A ? A.x : W/2) + Math.cos(ang)*rad, y: (A ? A.y : H/2) + Math.sin(ang)*rad, vx: 0, vy: 0, color: COLORS[n.type] || "#999", isContext: true, pinned: false, grow: 0 };
         idx[n.id] = o; nodes.push(o); nbr[n.id] = new Set();
       }
       for (const n of slice) {                        // connect context edges whose endpoints are both present
@@ -302,12 +309,12 @@ function drawGraph() {
       done += slice.length;
       if (prog) prog.textContent = done < total ? ` · loading ${done}/${total}` : "";
       updateLegend();
-      reheat(0.28);
-      if (done < total) setTimeout(nextBatch, DELAY);
+      if (done < total) { reheat(alphaFloor); setTimeout(nextBatch, DELAY); }
+      else { alphaFloor = 0; reheat(0.18); }            // last batch in: let it settle to a stop
     })();
   }
   function unloadContext() {
-    if (!contextOn) return; contextOn = false; ctxGen++;   // cancel any pending batch
+    if (!contextOn) return; contextOn = false; ctxGen++; alphaFloor = 0;   // cancel any pending batch
     for (let i = nodes.length - 1; i >= 0; i--) { const n = nodes[i]; if (n.isContext) { delete idx[n.id]; delete nbr[n.id]; nodes.splice(i, 1); } }
     for (let i = edges.length - 1; i >= 0; i--) { const e = edges[i]; if (e.context) { if (nbr[e.source]) nbr[e.source].delete(e.target); if (nbr[e.target]) nbr[e.target].delete(e.source); edgeKeys.delete(e.source + "|" + e.target); edges.splice(i, 1); } }
     nodes.forEach(n => { n.pinned = false; }); nodes.forEach(setR);
