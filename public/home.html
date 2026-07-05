@@ -32,6 +32,18 @@
   .glegendpanel .legend { margin-top:0; }
   .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:auto; padding:12px 14px 14px; font-size:13px; }
   .gdetailpanel .gclose { position:absolute; top:6px; right:8px; background:transparent; border:0; color:var(--muted); font-size:16px; cursor:pointer; }
+  /* the controls + legend panels: 20%-opaque so they barely obscure the graph, each minimisable */
+  .goverlay.soft { background:rgba(12,20,18,.2); }
+  .gcontrols, .glegendpanel { padding-right:30px; }
+  .gmin { position:absolute; top:6px; right:7px; width:20px; height:20px; padding:0; line-height:1; background:rgba(12,20,18,.35); border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:14px; cursor:pointer; z-index:1; }
+  .gmin:hover { color:var(--fg); border-color:var(--accent); }
+  .gcontrols.min { gap:0; }
+  .gcontrols.min > :not(.gctitle):not(.gmin) { display:none; }
+  .glegendpanel .gphead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .glegendpanel .gptitle { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .glegendpanel.min { left:12px; right:auto; }
+  .glegendpanel.min .legend { display:none; }
+  .glegendpanel.min .gphead { margin-bottom:0; }
   .gerr { top:12px; left:50%; transform:translateX(-50%); padding:8px 12px; color:#ff8a8a; }
   svg text { font-size:10px; fill:#e6edeb; pointer-events:none; paint-order:stroke; stroke:#0f1b19; stroke-width:3px; stroke-linejoin:round; }
   .legend { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--muted); }
@@ -94,13 +106,18 @@
 <section class="graphsection">
   <div class="graphwrap">
     <canvas id="gcanvas"></canvas>
-    <div class="goverlay gcontrols">
+    <div class="goverlay gcontrols soft">
+      <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
       <div class="gctitle">Knowledge graph <span style="font-weight:400;color:var(--muted)">· Canvas · <a href="/home-svg" style="color:var(--accent)">try SVG</a></span></div>
       <button class="secondary" onclick="drawGraph()">Redraw / re-layout</button>
       <label class="gcheck"><input type="checkbox" id="showContext" onchange="toggleContext()"> show context nodes (papers · populations · mechanisms)<span id="ctxprog" style="color:var(--accent)"></span></label>
       <div class="ghint">drag nodes · scroll to zoom · drag background to pan · click a node for detail · colour = node type</div>
     </div>
-    <div class="goverlay glegendpanel"><div id="glegend" class="legend"></div></div>
+    <div class="goverlay glegendpanel soft">
+      <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
+      <div class="gphead"><span class="gptitle">Legend</span></div>
+      <div id="glegend" class="legend"></div>
+    </div>
     <div class="goverlay gdetailpanel" id="detailpanel" hidden>
       <button class="gclose" onclick="closeDetail()" title="close">✕</button>
       <div id="detail" class="hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
@@ -382,6 +399,13 @@ function drawGraph() {
 function toggleContext() {
   if (!SIM) return;
   if ($("showContext").checked) SIM.loadContext(); else SIM.unloadContext();
+}
+// collapse/expand a floating panel so it doesn't cover nodes
+function toggleMin(btn) {
+  const panel = btn.closest(".goverlay");
+  const min = panel.classList.toggle("min");
+  btn.textContent = min ? "+" : "−";
+  btn.title = min ? "expand" : "minimize";
 }
 function pick(id) { if (pickSel) pickSel(id); $("detailpanel").hidden = false; loadDetail(id); }
 function closeDetail() { $("detailpanel").hidden = true; }
