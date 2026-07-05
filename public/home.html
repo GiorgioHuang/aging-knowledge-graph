@@ -97,7 +97,7 @@
     <div class="goverlay gcontrols">
       <div class="gctitle">Knowledge graph <span style="font-weight:400;color:var(--muted)">· Canvas · <a href="/home-svg" style="color:var(--accent)">try SVG</a></span></div>
       <button class="secondary" onclick="drawGraph()">Redraw / re-layout</button>
-      <label class="gcheck"><input type="checkbox" id="showContext" onchange="drawGraph()"> show context nodes (papers · populations · mechanisms)</label>
+      <label class="gcheck"><input type="checkbox" id="showContext" onchange="toggleContext()"> show context nodes (papers · populations · mechanisms)<span id="ctxprog" style="color:var(--accent)"></span></label>
       <div class="ghint">drag nodes · scroll to zoom · drag background to pan · click a node for detail · colour = node type</div>
     </div>
     <div class="goverlay glegendpanel"><div id="glegend" class="legend"></div></div>
@@ -130,7 +130,7 @@ const COLORS = { disease:"#e76f51", outcome:"#2a9d8f", population:"#8ab17d", exe
 
 const NS = "http://www.w3.org/2000/svg";
 const ACCENT = "#16a085";
-let RAF = null, pickSel = null;
+let RAF = null, pickSel = null, SIM = null;
 
 async function load() {
   try { $("backend").textContent = (await (await fetch("/health")).json()).backend; } catch { $("backend").textContent = "unreachable"; }
@@ -146,9 +146,9 @@ async function load() {
 }
 
 function drawGraph() {
-  // Canvas 2D renderer: draws the whole graph into one <canvas> each frame
-  // instead of thousands of live SVG DOM nodes — far cheaper per frame, so it
-  // stays smooth with thousands of nodes and while context nodes are shown.
+  // Canvas 2D renderer. Builds only the CORE graph (claims) and lets it settle;
+  // context nodes (papers · populations · mechanisms) are streamed in later, in
+  // timed batches, WITHOUT disturbing the core — see loadContext() below.
   const canvas = $("gcanvas");
   const wrap = canvas.parentElement;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -160,20 +160,17 @@ function drawGraph() {
   const W = CW, H = CH;
   if (RAF) cancelAnimationFrame(RAF);
 
-  const showCtx = $("showContext") && $("showContext").checked;
-  // "core" nodes participate in a claim (subject/object); papers, populations
-  // and mechanisms only attach as context and are hidden by default.
   const core = new Set(); GRAPH.edges.forEach(e => { core.add(e.source); core.add(e.target); });
   const idx = {};
   const nodes = GRAPH.nodes
-    .filter(n => showCtx || core.has(n.id))
-    .map(n => { const o = { ...n, x: W/2 + (Math.random()-0.5)*W*0.7, y: H/2 + (Math.random()-0.5)*H*0.7, vx: 0, vy: 0, color: COLORS[n.type] || "#999" }; idx[n.id] = o; return o; });
-  const claimEdges = GRAPH.edges.filter(e => idx[e.source] && idx[e.target]).map(e => ({ ...e, a: idx[e.source], b: idx[e.target] }));
-  const ctxEdges = showCtx ? (GRAPH.contextEdges || []).filter(e => idx[e.source] && idx[e.target]).map(e => ({ ...e, context: true, a: idx[e.source], b: idx[e.target] })) : [];
-  const edges = claimEdges.concat(ctxEdges);
+    .filter(n => core.has(n.id))
+    .map(n => { const o = { ...n, x: W/2 + (Math.random()-0.5)*W*0.7, y: H/2 + (Math.random()-0.5)*H*0.7, vx: 0, vy: 0, color: COLORS[n.type] || "#999", isContext: false, pinned: false }; idx[n.id] = o; return o; });
+  const edges = GRAPH.edges.filter(e => idx[e.source] && idx[e.target]).map(e => ({ ...e, a: idx[e.source], b: idx[e.target] }));
   const nbr = {}; nodes.forEach(n => nbr[n.id] = new Set());
-  edges.forEach(e => { nbr[e.source].add(e.target); nbr[e.target].add(e.source); });
-  nodes.forEach(n => n.r = 6 + Math.min(8, nbr[n.id].size));
+  const edgeKeys = new Set();
+  edges.forEach(e => { nbr[e.source].add(e.target); nbr[e.target].add(e.source); edgeKeys.add(e.source + "|" + e.target); });
+  const setR = (n) => { n.r = 6 + Math.min(8, nbr[n.id].size); };
+  nodes.forEach(setR);
 
   const view = { tx: 0, ty: 0, k: 1 };
   let alpha = 1, dragging = null, hoverId = null, selId = null, running = false;
@@ -184,7 +181,7 @@ function drawGraph() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, CW, CH);
     ctx.translate(view.tx, view.ty); ctx.scale(view.k, view.k);
-    const f = focus(), near = f ? new Set([f, ...nbr[f]]) : null;
+    const f = focus(), near = f ? new Set([f, ...(nbr[f] || [])]) : null;
 
     // edges — dashed for context, red for conflict, accent when incident to focus
     for (const e of edges) {
@@ -222,8 +219,7 @@ function drawGraph() {
   }
 
   // Reheat + run the sim; it STOPS when settled (no perpetual CPU churn) and
-  // restarts on interaction. Repulsion uses a uniform spatial grid so only
-  // nearby nodes interact — ~O(n) instead of O(n²).
+  // restarts on interaction. Repulsion uses a uniform spatial grid — ~O(n).
   function reheat(a) { alpha = Math.max(alpha, a); if (!running) { running = true; RAF = requestAnimationFrame(tick); } }
   function tick() {
     const grid = new Map();
@@ -233,6 +229,7 @@ function drawGraph() {
       const cell = grid.get(k); if (cell) cell.push(n); else grid.set(k, [n]);
     }
     for (const n of nodes) {
+      if (n.pinned) continue;                         // pinned core exerts force but isn't pushed
       for (let gx = n._gx - 1; gx <= n._gx + 1; gx++) for (let gy = n._gy - 1; gy <= n._gy + 1; gy++) {
         const cell = grid.get((gx + 4096) * 8192 + (gy + 4096)); if (!cell) continue;
         for (let ci = 0; ci < cell.length; ci++) {
@@ -245,14 +242,82 @@ function drawGraph() {
         }
       }
     }
-    edges.forEach(e => { const a = e.a, b = e.b; let dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx,dy) || 1, f = (d-95) * 0.045 * alpha; a.vx += dx/d*f; a.vy += dy/d*f; b.vx -= dx/d*f; b.vy -= dy/d*f; });
-    nodes.forEach(n => { n.vx += (W/2 - n.x) * 0.002 * alpha; n.vy += (H/2 - n.y) * 0.002 * alpha; if (n !== dragging) { n.x += n.vx * 0.85; n.y += n.vy * 0.85; } n.vx *= 0.82; n.vy *= 0.82; });
+    edges.forEach(e => { const a = e.a, b = e.b; let dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx,dy) || 1, f = (d-95) * 0.045 * alpha; if (!a.pinned) { a.vx += dx/d*f; a.vy += dy/d*f; } if (!b.pinned) { b.vx -= dx/d*f; b.vy -= dy/d*f; } });
+    nodes.forEach(n => {
+      if (n.pinned) { n.vx = n.vy = 0; return; }       // the settled core holds still while context loads
+      n.vx += (W/2 - n.x) * 0.002 * alpha; n.vy += (H/2 - n.y) * 0.002 * alpha;
+      if (n !== dragging) { n.x += n.vx * 0.85; n.y += n.vy * 0.85; }
+      n.vx *= 0.82; n.vy *= 0.82;
+    });
     draw();
     alpha *= 0.985;
     if (alpha > STOP || dragging) RAF = requestAnimationFrame(tick); else running = false;
   }
 
+  function updateLegend() {
+    const types = [...new Set(nodes.map(n => n.type))].sort();
+    const conflictLegend = edges.some(e => e.conflict) ? `<span class="lg" style="margin-left:6px"><i style="background:#c1121f;border-radius:2px"></i>conflicting evidence (edge)</span>` : "";
+    $("glegend").innerHTML = types.map(t => `<span class="lg"><i style="background:${COLORS[t] || '#999'}"></i>${t}</span>`).join("") + conflictLegend;
+  }
+
   pickSel = (id) => { selId = id; if (!running) draw(); };
+
+  // ---- streaming context loader: pins the settled core (so existing nodes do
+  // NOT move), then adds context nodes a batch at a time with a gap between
+  // batches, so the main thread stays responsive instead of freezing.
+  let contextOn = false, ctxGen = 0;
+  const BATCH = 60, DELAY = 90;
+  function loadContext() {
+    if (contextOn) return; contextOn = true;
+    const gen = ++ctxGen;
+    nodes.forEach(n => { if (!n.isContext) n.pinned = true; });
+    const ctxAdj = {};
+    (GRAPH.contextEdges || []).forEach(e => { (ctxAdj[e.source] = ctxAdj[e.source] || []).push(e.target); (ctxAdj[e.target] = ctxAdj[e.target] || []).push(e.source); });
+    const placedAnchor = (n) => { const a = ctxAdj[n.id]; return a && a.some(id => idx[id]) ? 1 : 0; };
+    const pending = GRAPH.nodes.filter(n => !idx[n.id]).sort((a, b) => placedAnchor(b) - placedAnchor(a));
+    const total = pending.length; let done = 0;
+    const prog = $("ctxprog");
+    if (!total) { if (prog) prog.textContent = ""; return; }
+
+    (function nextBatch() {
+      if (gen !== ctxGen) return;                     // superseded by unload / redraw
+      const slice = pending.slice(done, done + BATCH);
+      for (const n of slice) {
+        const anchorId = (ctxAdj[n.id] || []).find(id => idx[id]);
+        const A = anchorId ? idx[anchorId] : null;
+        const ang = Math.random() * 6.283, rad = 30 + Math.random() * 50;
+        const o = { ...n, x: (A ? A.x : W/2) + Math.cos(ang)*rad, y: (A ? A.y : H/2) + Math.sin(ang)*rad, vx: 0, vy: 0, color: COLORS[n.type] || "#999", isContext: true, pinned: false };
+        idx[n.id] = o; nodes.push(o); nbr[n.id] = new Set();
+      }
+      for (const n of slice) {                        // connect context edges whose endpoints are both present
+        for (const other of (ctxAdj[n.id] || [])) {
+          if (!idx[other] || other === n.id) continue;
+          const key = n.id + "|" + other;
+          if (edgeKeys.has(key) || edgeKeys.has(other + "|" + n.id)) continue;
+          edgeKeys.add(key);
+          edges.push({ source: n.id, target: other, context: true, a: idx[n.id], b: idx[other] });
+          nbr[n.id].add(other); nbr[other].add(n.id); setR(idx[n.id]); setR(idx[other]);
+        }
+      }
+      done += slice.length;
+      if (prog) prog.textContent = done < total ? ` · loading ${done}/${total}` : "";
+      updateLegend();
+      reheat(0.28);
+      if (done < total) setTimeout(nextBatch, DELAY);
+    })();
+  }
+  function unloadContext() {
+    if (!contextOn) return; contextOn = false; ctxGen++;   // cancel any pending batch
+    for (let i = nodes.length - 1; i >= 0; i--) { const n = nodes[i]; if (n.isContext) { delete idx[n.id]; delete nbr[n.id]; nodes.splice(i, 1); } }
+    for (let i = edges.length - 1; i >= 0; i--) { const e = edges[i]; if (e.context) { if (nbr[e.source]) nbr[e.source].delete(e.target); if (nbr[e.target]) nbr[e.target].delete(e.source); edgeKeys.delete(e.source + "|" + e.target); edges.splice(i, 1); } }
+    nodes.forEach(n => { n.pinned = false; }); nodes.forEach(setR);
+    const prog = $("ctxprog"); if (prog) prog.textContent = "";
+    if (selId && !idx[selId]) selId = null;
+    if (hoverId && !idx[hoverId]) hoverId = null;
+    updateLegend();
+    if (!running) draw(); else reheat(0.05);
+  }
+  SIM = { loadContext, unloadContext };
 
   // ---- interaction: hit-test in world space; drag node vs pan background; zoom around cursor
   const toScreen = (ev) => { const rect = canvas.getBoundingClientRect(); return { x: ev.clientX - rect.left, y: ev.clientY - rect.top }; };
@@ -303,11 +368,13 @@ function drawGraph() {
     if (!running) draw();
   };
 
-  const types = [...new Set(nodes.map(n => n.type))].sort();
-  const conflictLegend = edges.some(e => e.conflict) ? `<span class="lg" style="margin-left:6px"><i style="background:#c1121f;border-radius:2px"></i>conflicting evidence (edge)</span>` : "";
-  $("glegend").innerHTML = types.map(t => `<span class="lg"><i style="background:${COLORS[t] || '#999'}"></i>${t}</span>`).join("") + conflictLegend;
-
+  updateLegend();
   reheat(1);
+  if ($("showContext") && $("showContext").checked) loadContext();
+}
+function toggleContext() {
+  if (!SIM) return;
+  if ($("showContext").checked) SIM.loadContext(); else SIM.unloadContext();
 }
 function pick(id) { if (pickSel) pickSel(id); $("detailpanel").hidden = false; loadDetail(id); }
 function closeDetail() { $("detailpanel").hidden = true; }
