@@ -30,8 +30,12 @@
   .gcontrols .ghint { font-size:11px; color:var(--muted); line-height:1.4; }
   .glegendpanel { left:12px; right:12px; bottom:12px; padding:8px 10px; max-height:26%; overflow:auto; }
   .glegendpanel .legend { margin-top:0; }
-  .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:auto; padding:12px 14px 14px; font-size:13px; }
-  .gdetailpanel .gclose { position:absolute; top:6px; right:8px; background:transparent; border:0; color:var(--muted); font-size:16px; cursor:pointer; }
+  .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:hidden; padding:0; font-size:13px; display:flex; flex-direction:column; }
+  .gdetailpanel .gdhead { flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:10px 12px 8px; border-bottom:1px solid var(--line); }
+  .gdetailpanel .gdtitle { min-width:0; }
+  .gdetailpanel .gdbody { flex:1 1 auto; overflow:auto; padding:10px 14px 14px; }
+  .gdetailpanel .gclose { flex:0 0 auto; background:transparent; border:0; color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:0 2px; }
+  .gdetailpanel .gclose:hover { color:var(--fg); }
   /* the controls + legend panels: 20%-opaque so they barely obscure the graph, each minimisable */
   .goverlay.soft { background:rgba(12,20,18,.2); }
   .gcontrols, .glegendpanel { padding-right:30px; }
@@ -49,7 +53,7 @@
   .legend { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--muted); }
   .legend .lg { display:inline-flex; align-items:center; gap:5px; }
   .legend i { width:11px; height:11px; border-radius:50%; display:inline-block; }
-  #detail h3 { margin:.2em 0; padding-right:20px; } #detail ul { margin:.3em 0; padding-left:1.2em; } #detail li { margin:2px 0; }
+  .gdtitle h3 { margin:0; font-size:15px; } #detail ul { margin:.3em 0; padding-left:1.2em; } #detail li { margin:2px 0; }
   #detail a { color:var(--accent); }
   .srow { display:flex; gap:10px; flex-wrap:wrap; }
   .srow input { flex:1; min-width:240px; background:#0f1b19; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; }
@@ -119,8 +123,11 @@
       <div id="glegend" class="legend"></div>
     </div>
     <div class="goverlay gdetailpanel" id="detailpanel" hidden>
-      <button class="gclose" onclick="closeDetail()" title="close">✕</button>
-      <div id="detail" class="hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
+      <div class="gdhead">
+        <div id="detailtitle" class="gdtitle"></div>
+        <button class="gclose" onclick="closeDetail()" title="close" aria-label="close">✕</button>
+      </div>
+      <div id="detail" class="gdbody hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
     </div>
     <div class="goverlay gerr" id="gdetail" hidden></div>
   </div>
@@ -411,13 +418,14 @@ function pick(id) { if (pickSel) pickSel(id); $("detailpanel").hidden = false; l
 function closeDetail() { $("detailpanel").hidden = true; }
 async function loadDetail(id) {
   const d = await (await fetch("/nodes/" + encodeURIComponent(id) + "/detail")).json();
-  if (d.error) { $("detail").textContent = d.error; return; }
+  if (d.error) { $("detailtitle").innerHTML = ""; $("detail").textContent = d.error; return; }
+  $("detail").scrollTop = 0;
   const cite = ev => ev.length ? " <code>" + ev.map(x => x.source_id).join(", ") + "</code>" : "";
   const dirTxt = c => c.direction ? ` (${c.direction})` : "";
   const line = (c, dir) => `<li>${dir==='out' ? c.relationship + dirTxt(c) + " → <b>" + c.other.name + "</b>" : "<b>" + c.other.name + "</b> " + c.relationship + dirTxt(c) + " →"}
      <code>${c.population ? c.population + " · " : ""}${c.dose ? c.dose + " · " : ""}${c.comparator ? "vs " + c.comparator + " · " : ""}${c.certainty || ""} ${c.status}</code>${qualityBadge(c.quality)}${cite(c.evidence)}</li>`;
-  $("detail").innerHTML = `<h3>${d.node.name} <code>${d.node.id} · ${d.node.type}</code></h3>
-    <div class="hint">domains: ${d.node.domains.join(", ") || "—"} · codes: ${(d.node.external_ids||[]).join(", ") || "—"}</div>
+  $("detailtitle").innerHTML = `<h3>${d.node.name} <code>${d.node.id} · ${d.node.type}</code></h3>`;
+  $("detail").innerHTML = `<div class="hint">domains: ${d.node.domains.join(", ") || "—"} · codes: ${(d.node.external_ids||[]).join(", ") || "—"}</div>
     ${d.node.description ? "<p>" + d.node.description + "</p>" : ""}
     <strong>Outgoing (${d.outgoing.length})</strong><ul>${d.outgoing.map(c => line(c,'out')).join("") || "<li class='hint'>none</li>"}</ul>
     <strong>Incoming (${d.incoming.length})</strong><ul>${d.incoming.map(c => line(c,'in')).join("") || "<li class='hint'>none</li>"}</ul>
