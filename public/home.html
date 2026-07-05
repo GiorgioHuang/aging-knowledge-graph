@@ -387,6 +387,7 @@ function drawGraph() {
   const endPointer = (ev) => {
     try { canvas.releasePointerCapture(ev.pointerId); } catch {}
     if (mode === "drag" && !moved && dragNode) pick(dragNode.id);
+    else if (mode === "pan" && !moved && selId) { selId = null; closeDetail(); if (!running) draw(); }  // click on empty space deselects + closes detail
     mode = null; dragNode = null; dragging = null; panStart = null;
   };
   canvas.onpointerup = endPointer;
