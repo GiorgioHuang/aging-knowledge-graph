@@ -1,8 +1,8 @@
 # 04 · AI Capabilities
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
-GraceAge Knowledge is AI-native: AI builds and maintains the graph at scale,
+Healthy Aging Knowledge is AI-native: AI builds and maintains the graph at scale,
 while provenance keeps it auditable. This document specifies the AI capabilities,
 each as purpose → inputs/outputs → strategy. They map onto the AI services layer
 in [`03-architecture.md`](03-architecture.md) and conform to the
@@ -10,7 +10,7 @@ in [`03-architecture.md`](03-architecture.md) and conform to the
 
 ## 中文摘要
 
-GraceAge Knowledge 是 AI 原生的：AI 大规模地构建与维护图谱，而来源（provenance）保证其可审计。
+Healthy Aging Knowledge 是 AI 原生的：AI 大规模地构建与维护图谱，而来源（provenance）保证其可审计。
 核心 AI 能力包括：从论文中**自动抽取**实体与关系、**自动链接与去重**、**证据评分**、
 **来源追溯**、**语义搜索**与**图谱 RAG 问答**、**知识演化/时间线**追踪、**自动打标签**。
 每项能力都遵循知识模型，并记录抽取者（人 vs. 模型）。默认使用最新、最强的 Claude 模型

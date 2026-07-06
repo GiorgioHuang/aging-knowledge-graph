@@ -1,6 +1,6 @@
 # 17 · Agents — continuous Curator + Reviewer
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 Two LLM agents keep the graph growing **and** keep it honest:
 

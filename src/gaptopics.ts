@@ -1,4 +1,4 @@
-// GraceAge Knowledge — close the loop: turn user questions the graph COULDN'T
+// Healthy Aging Knowledge — close the loop: turn user questions the graph COULDN'T
 // answer (ask_log gaps: ok, num_claims=0) into curation topics — but only the
 // ones that are genuinely relevant. Two gates protect the queue from junk:
 //   1. an LLM relevance judge (in scope for healthy aging? researchable?) that
@@ -19,7 +19,7 @@ const DOMAINS = loadGraph().ontology.domains;
 
 interface Judgement { relevant?: boolean; topic?: unknown; domain?: unknown }
 
-const JUDGE_SYSTEM = `You triage user questions for GraceAge Knowledge, an evidence graph STRICTLY about healthy aging / geriatrics (older adults, ~65+).
+const JUDGE_SYSTEM = `You triage user questions for Healthy Aging Knowledge, an evidence graph STRICTLY about healthy aging / geriatrics (older adults, ~65+).
 
 For each question decide if it is a RELEVANT, researchable healthy-aging topic worth adding to the graph. It is relevant ONLY if it concerns older-adult health — an intervention, exposure, or condition tied to an aging-relevant outcome or older population, of the kind with systematic reviews, RCTs, or cohort studies.
 

@@ -1,6 +1,6 @@
 # 15 · Deployment (Cloud Run + Neon)
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 Deploy the REST API to **Google Cloud Run**, which calls **Neon (Postgres +
 pgvector)**. Cloud Run has **open egress**, so it reaches Neon's HTTPS endpoint

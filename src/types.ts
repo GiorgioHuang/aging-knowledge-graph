@@ -1,4 +1,4 @@
-// GraceAge Knowledge — V0 model types. Mirror docs/02-knowledge-model.md.
+// Healthy Aging Knowledge — V0 model types. Mirror docs/02-knowledge-model.md.
 
 export interface Ontology {
   nodeTypes: string[];

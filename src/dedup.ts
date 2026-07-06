@@ -1,4 +1,4 @@
-// GraceAge Knowledge — merge duplicate edges (claims) that predate the curator's
+// Healthy Aging Knowledge — merge duplicate edges (claims) that predate the curator's
 // edge-level de-dup. Groups claims by subject + relationship + object + direction
 // (population-agnostic, direction-sensitive so opposing claims stay separate).
 // Keeps one (prefer curated, then oldest), moves the others' evidence onto it

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the GraceAge Knowledge REST API to Google Cloud Run.
+# Deploy the Healthy Aging Knowledge REST API to Google Cloud Run.
 # Cloud Run has open egress, so it reaches Neon's HTTPS endpoint directly
 # (no allowlist juggling). Run from a machine with gcloud authenticated.
 #

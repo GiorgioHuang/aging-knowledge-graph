@@ -1,4 +1,4 @@
-// GraceAge Knowledge — bulk import (JSON batch or CSV) and a PubMed citation
+// Healthy Aging Knowledge — bulk import (JSON batch or CSV) and a PubMed citation
 // lookup helper. Reuses the validated single-record writers.
 
 import { createNode, createClaim, createEvidence, type WriteResult } from "./writes.ts";

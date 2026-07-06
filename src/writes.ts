@@ -1,4 +1,4 @@
-// GraceAge Knowledge — write path (curation). Persists to Neon; validates each
+// Healthy Aging Knowledge — write path (curation). Persists to Neon; validates each
 // record against the model before insert; keeps embeddings in sync. Writes are
 // only available when DATABASE_URL is configured and are token-gated at the HTTP
 // layer (see src/http.ts).

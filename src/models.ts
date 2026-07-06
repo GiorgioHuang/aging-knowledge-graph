@@ -1,4 +1,4 @@
-// GraceAge Knowledge — model selection for the agents.
+// Healthy Aging Knowledge — model selection for the agents.
 // Each agent (curator / reviewer) can run on a DIFFERENT Claude model, and the
 // choice is switchable at runtime (DB setting) without code changes or redeploys.
 // This module holds the pure, dependency-free pieces; src/settings.ts layers the

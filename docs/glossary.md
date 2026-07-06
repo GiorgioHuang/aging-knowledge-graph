@@ -1,6 +1,6 @@
 # Glossary · 术语表
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 Bilingual definitions of key terms used across these docs.
 

@@ -1,6 +1,6 @@
 # 06 · Roadmap
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 A phased, multi-year plan an AI agent (or contributor) can pull work from. Each
 phase has **goals**, **deliverables**, and **exit criteria**. Build in order;

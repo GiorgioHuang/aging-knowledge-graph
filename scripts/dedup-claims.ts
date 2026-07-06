@@ -1,4 +1,4 @@
-// GraceAge Knowledge — one-time merge of duplicate edges (CLI wrapper).
+// Healthy Aging Knowledge — one-time merge of duplicate edges (CLI wrapper).
 // Logic lives in src/dedup.ts (so it also runs online via POST /admin/dedup).
 //
 //   DRY RUN (default):  DATABASE_URL='postgres://…' npm run db:dedup

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — MCP server over stdio (newline-delimited JSON-RPC 2.0).
+// Healthy Aging Knowledge — MCP server over stdio (newline-delimited JSON-RPC 2.0).
 // Handling is shared with the HTTP transport via src/mcp-core.ts.
 //   node --experimental-strip-types src/mcp.ts
 import { loadGraphAsync } from "./store.ts";

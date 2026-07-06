@@ -1,4 +1,4 @@
-// GraceAge Knowledge — idempotent provisioning of the Neon database.
+// Healthy Aging Knowledge — idempotent provisioning of the Neon database.
 // Used by the HTTP server on startup (so a Cloud Run deploy brings data online
 // automatically) and by the db:setup / db:ensure scripts.
 

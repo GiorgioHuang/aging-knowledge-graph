@@ -1,6 +1,6 @@
 # 02 · Knowledge Model (Ontology)
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 This is the heart of the specification: how knowledge is represented. It defines
 the **knowledge domains** we cover, the **node types**, the **relationship

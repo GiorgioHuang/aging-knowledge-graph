@@ -1,4 +1,4 @@
-// GraceAge Knowledge — shared query registry.
+// Healthy Aging Knowledge — shared query registry.
 // One source of truth for the callable read-only queries, powering the CLI
 // (cli.ts), the REST API (http.ts) and the MCP server (mcp.ts).
 

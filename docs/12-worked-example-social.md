@@ -1,6 +1,6 @@
 # 12 · Worked Example — Social Participation / Loneliness / Depression (curated)
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 The second **promotion of a backbone chain from `skeleton` to curated, cited
 claims** — this time in the **mental-health** domain, to stress-test the model

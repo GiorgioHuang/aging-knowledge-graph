@@ -1,4 +1,4 @@
-// GraceAge Knowledge — grounded Q&A (RAG) over the curated graph.
+// Healthy Aging Knowledge — grounded Q&A (RAG) over the curated graph.
 // Retrieve the most relevant claims via semantic search, hand the model ONLY the
 // graph's own claims + evidence, and ask it to answer with citations — or to say
 // the graph has no evidence. It must not invent facts or identifiers.
@@ -127,7 +127,7 @@ export function extractCitedIds(answer: string): string[] {
   return [...ids];
 }
 
-export const ASK_SYSTEM = `You are the answering assistant for GraceAge Knowledge, an evidence-traceable knowledge graph for healthy aging.
+export const ASK_SYSTEM = `You are the answering assistant for Healthy Aging Knowledge, an evidence-traceable knowledge graph for healthy aging.
 Answer the user's question USING ONLY the claims and evidence in the provided context. Rules:
 - Do NOT use outside knowledge. If the context lacks enough evidence to answer, say so plainly (e.g. "The graph doesn't yet have evidence on this.") and stop — do not guess.
 - Cite the sources you rely on inline, using their identifiers EXACTLY as given, in square brackets, e.g. [PMID:12345678] or [DOI:10.1000/xyz]. Never invent or alter an identifier.

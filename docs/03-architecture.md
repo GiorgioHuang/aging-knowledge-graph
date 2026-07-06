@@ -1,6 +1,6 @@
 # 03 · Architecture
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 This document describes the intended technical architecture: the stack, the data
 model, and the **API-first** design that lets both humans and AI agents build on

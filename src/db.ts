@@ -1,4 +1,4 @@
-// GraceAge Knowledge — Neon Postgres access.
+// Healthy Aging Knowledge — Neon Postgres access.
 // The driver (@neondatabase/serverless) is imported DYNAMICALLY and only when a
 // DATABASE_URL is configured, so the offline seed path needs no dependency and
 // `npm test` runs without installing anything.

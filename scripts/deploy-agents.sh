@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the GraceAge Knowledge agents (Curator + Reviewer) as a Cloud Run JOB,
+# Deploy the Healthy Aging Knowledge agents (Curator + Reviewer) as a Cloud Run JOB,
 # triggered on a schedule by Cloud Scheduler — this is the "continuous" loop:
 # every tick, one cycle expands the graph and reviews new claims.
 #

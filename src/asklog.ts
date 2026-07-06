@@ -1,4 +1,4 @@
-// GraceAge Knowledge — Q&A request logging.
+// Healthy Aging Knowledge — Q&A request logging.
 // Records every /ask to Postgres (question, grounded answer, retrieved/cited
 // claims, model, latency, client info). Best-effort: never throws into the
 // request path, and is a no-op when no DATABASE_URL is set. The table is created

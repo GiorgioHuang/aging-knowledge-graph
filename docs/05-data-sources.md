@@ -1,6 +1,6 @@
 # 05 · Data Sources & Standards
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 The graph is only as trustworthy as its sources. This document specifies where
 knowledge comes from, how it maps to standard health ontologies, and the

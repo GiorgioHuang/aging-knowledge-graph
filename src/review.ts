@@ -1,4 +1,4 @@
-// GraceAge Knowledge — human review console (the "exceptions to humans" half of
+// Healthy Aging Knowledge — human review console (the "exceptions to humans" half of
 // the agent policy). The reviewer agent files suspect claims as
 // `needs_refinement` and logs WHY (verdict + reason + citation checks) to
 // agent_run. This module surfaces that queue with full context and lets a human

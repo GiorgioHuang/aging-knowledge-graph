@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "GraceAge Knowledge — an open, evidence-traceable knowledge graph for aging well (V0).",
+  "description": "Healthy Aging Knowledge — an open, evidence-traceable knowledge graph for aging well (V0).",
   "license": "MIT",
   "engines": {
     "node": ">=22.18"

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — citation resolution by description.
+// Healthy Aging Knowledge — citation resolution by description.
 // LLMs hallucinate identifiers: they recall a real paper's title/finding but
 // attach a PMID/DOI that points to an unrelated paper (and that wrong id still
 // "resolves"). So we never trust a model-supplied identifier. The curator

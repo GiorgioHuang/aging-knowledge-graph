@@ -1,4 +1,4 @@
-// GraceAge Knowledge — evidence quality scoring (GRADE-informed, heuristic).
+// Healthy Aging Knowledge — evidence quality scoring (GRADE-informed, heuristic).
 // A transparent 0–100 strength signal for a claim, derived from what we store:
 //   • study design   — the strongest design among the claim's evidence (main driver)
 //   • replication     — number of independent sources (consistency proxy)

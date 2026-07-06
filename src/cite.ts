@@ -1,4 +1,4 @@
-// GraceAge Knowledge — citation verification (anti-hallucination gate).
+// Healthy Aging Knowledge — citation verification (anti-hallucination gate).
 // The reviewer does NOT trust the model to self-check: it actually resolves each
 // cited PMID/DOI against PubMed (NCBI E-utilities) and Crossref. A citation that
 // does not resolve is treated as fabricated, which sends the claim to human
@@ -21,7 +21,7 @@ export async function resolveDoi(doi: string): Promise<boolean> {
   if (!id) return false;
   try {
     const res = await fetch(`https://api.crossref.org/works/${encodeURIComponent(id)}/agency`, {
-      headers: { "user-agent": "GraceAgeKnowledge/1.0 (https://ack.icareu.ca)" },
+      headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" },
     });
     return res.ok;
   } catch {

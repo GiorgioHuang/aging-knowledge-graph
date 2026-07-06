@@ -1,4 +1,4 @@
-// GraceAge Knowledge — topic work queue + agent run log.
+// Healthy Aging Knowledge — topic work queue + agent run log.
 // The curator pulls one pending topic at a time (atomic claim with SKIP LOCKED
 // so concurrent jobs don't collide), expands it, then marks it done/failed.
 

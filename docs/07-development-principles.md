@@ -1,6 +1,6 @@
 # 07 · Development Principles
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 The "constitution" for everyone building this repo — human contributors and the
 AI coding agent alike. These rules keep a multi-year, AI-developed project

@@ -1,5 +1,5 @@
 {
-  "_comment": "Controlled vocabularies for GraceAge Knowledge V0. Single source of truth for the validator; mirrors docs/02-knowledge-model.md and db/migrations/0001_init.sql.",
+  "_comment": "Controlled vocabularies for Healthy Aging Knowledge V0. Single source of truth for the validator; mirrors docs/02-knowledge-model.md and db/migrations/0001_init.sql.",
   "nodeTypes": [
     "disease", "symptom", "outcome", "population", "intervention", "exercise",
     "nutrition", "drug", "mechanism", "scale", "tool", "research", "paper",

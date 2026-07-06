@@ -1,4 +1,4 @@
-// GraceAge Knowledge — entity resolution (node de-duplication).
+// Healthy Aging Knowledge — entity resolution (node de-duplication).
 // The Curator runs continuously, so without de-dup the graph fragments fast:
 // "Exercise", "exercise", "Physical activity training" would all become separate
 // nodes. This module decides whether a proposed concept already exists, using a

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — embeddings + semantic search.
+// Healthy Aging Knowledge — embeddings + semantic search.
 // Default embedder is a ZERO-DEPENDENCY, deterministic, offline hashing
 // vectorizer (no network, no API key) so semantic search runs and tests in any
 // environment. A guarded remote adapter (OpenAI-compatible) activates only when

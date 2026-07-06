@@ -1,6 +1,6 @@
 # 08 · Competency Questions
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 **Competency questions (CQs)** are the questions the knowledge graph must be able
 to answer. They are a standard ontology-engineering tool: we design the model

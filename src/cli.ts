@@ -1,4 +1,4 @@
-// GraceAge Knowledge — V0 CLI.
+// Healthy Aging Knowledge — V0 CLI.
 //   node --experimental-strip-types src/cli.ts validate
 //   node --experimental-strip-types src/cli.ts query what_affects ga:fall-rate --protective
 //   node --experimental-strip-types src/cli.ts query conflicts

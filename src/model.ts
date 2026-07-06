@@ -1,4 +1,4 @@
-// GraceAge Knowledge — V0 loader + validator.
+// Healthy Aging Knowledge — V0 loader + validator.
 // Loads the JSON seed and checks it against the ontology and the rules in
 // docs/02-knowledge-model.md. Zero dependencies (Node built-ins only).
 

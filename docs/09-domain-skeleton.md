@@ -1,6 +1,6 @@
 # 09 · Domain Skeleton (broad coverage)
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 A **broad, shallow** map across all 15 [knowledge domains](02-knowledge-model.md#1-knowledge-domains).
 For each domain it sketches the core node clusters (sample concepts by type), the

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — outbound notifications (Telegram) for new contact
+// Healthy Aging Knowledge — outbound notifications (Telegram) for new contact
 // messages. Best-effort: nothing here throws into the request path. The message
 // is already persisted in Postgres before we notify, so a Telegram outage just
 // means no push (the maintainer can still read it via /contact/messages).
@@ -19,7 +19,7 @@ export function telegramConfigured(): boolean {
  *  can't inject Markdown/HTML). Pure — unit-tested. */
 export function formatContactNotice(n: ContactNotice): string {
   const lines = [
-    "📬 New contact message — GraceAge Knowledge",
+    "📬 New contact message — Healthy Aging Knowledge",
     `From: ${n.name?.trim() || "(anonymous)"}`,
     `Email: ${n.email?.trim() || "(none)"}`,
     "",

@@ -1,6 +1,6 @@
 # 11 · Worked Example — Falls / Exercise / Strength (curated)
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 This is the first **promotion of a backbone chain from `skeleton` to curated,
 cited claims** — a real, end-to-end test of the model across

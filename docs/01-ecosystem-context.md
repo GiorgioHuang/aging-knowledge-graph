@@ -1,8 +1,8 @@
 # 01 · Ecosystem Context
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
-GraceAge Knowledge does not stand alone. It is one pillar of the **GraceAge**
+Healthy Aging Knowledge does not stand alone. It is one pillar of the **GraceAge**
 ecosystem — a multi-year research infrastructure spanning a research platform,
 an AI companion, caregiver tools, learning, data, and a public lab presence.
 This document gives just enough context to understand where Knowledge sits and
@@ -10,7 +10,7 @@ how it connects. The other pillars are **out of scope** for this repo's spec.
 
 ## 中文摘要
 
-GraceAge Knowledge 是 **GraceAge** 生态系统的一个支柱，而非孤立项目。生态系统包含：
+Healthy Aging Knowledge 是 **GraceAge** 生态系统的一个支柱，而非孤立项目。生态系统包含：
 研究平台（OS）、知识图谱（Core/Knowledge，即本仓库）、AI 陪伴（Companion）、
 照护平台（Care）、学习（Learn）、研究数据集（Data）、研究网站（Lab）。本文件仅说明
 知识图谱在其中的位置及连接方式；其他支柱不在本仓库规格范围内。知识图谱是**共享的语义底座**：

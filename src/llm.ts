@@ -1,4 +1,4 @@
-// GraceAge Knowledge — minimal, ZERO-DEPENDENCY Anthropic Messages API client.
+// Healthy Aging Knowledge — minimal, ZERO-DEPENDENCY Anthropic Messages API client.
 // Used by the curator (expand the graph) and reviewer (judge candidates) agents.
 // Talks to POST /v1/messages with native fetch; no SDK, no runtime dependency.
 // The key is read from ANTHROPIC_API_KEY (Secret Manager in production); when it

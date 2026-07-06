@@ -1,4 +1,4 @@
-// GraceAge Knowledge — zero-dependency REST API over the curated graph.
+// Healthy Aging Knowledge — zero-dependency REST API over the curated graph.
 // Read-only. Powered by the shared registry (registry.ts).
 //   node --experimental-strip-types src/http.ts          # listens on $PORT or 8787
 import { createServer as nodeCreateServer, type Server, type IncomingMessage } from "node:http";
@@ -78,7 +78,7 @@ function requireManagementAuth(req: IncomingMessage, res: import("node:http").Se
   if (!process.env.CURATOR_TOKEN) return true; // no token set → nothing to protect (dev)
   if (hasCuratorToken(req)) return true;
   res.writeHead(401, {
-    "www-authenticate": 'Basic realm="GraceAge management", charset="UTF-8"',
+    "www-authenticate": 'Basic realm="Healthy Aging Knowledge management", charset="UTF-8"',
     "content-type": "text/plain; charset=utf-8",
   });
   res.end("Management area — authentication required.");
@@ -535,7 +535,7 @@ async function main(): Promise<void> {
   }
 
   createServer(state).listen(port, () =>
-    console.log(`GraceAge Knowledge API on http://localhost:${port} (backend: ${state.backend})`),
+    console.log(`Healthy Aging Knowledge API on http://localhost:${port} (backend: ${state.backend})`),
   );
 }
 

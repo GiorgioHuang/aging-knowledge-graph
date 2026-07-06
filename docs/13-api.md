@@ -1,6 +1,6 @@
 # 13 · API & MCP Surface
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 The graph is exposed through two **read-only**, **zero-dependency** surfaces so
 other GraceAge pillars (*OS*, *Companion*) and AI agents can consume it:

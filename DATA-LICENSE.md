@@ -6,7 +6,7 @@ under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license
 https://creativecommons.org/licenses/by/4.0/
 
 You are free to share and adapt this data for any purpose, provided you give
-appropriate credit to **GraceAge Knowledge**.
+appropriate credit to **Healthy Aging Knowledge**.
 
 ## Scope & split
 

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — Curator agent.
+// Healthy Aging Knowledge — Curator agent.
 // Continuously EXPANDS the graph: it takes a topic, asks Claude to propose
 // well-formed, literature-grounded candidate claims. The model DESCRIBES each
 // source (title + author + year) but never supplies the identifier — LLMs
@@ -109,7 +109,7 @@ export function validateCandidate(c: Candidate): string[] {
   return errs;
 }
 
-const SYSTEM = `You are the Curator for GraceAge Knowledge, an evidence-traceable knowledge graph about healthy aging.
+const SYSTEM = `You are the Curator for Healthy Aging Knowledge, an evidence-traceable knowledge graph about healthy aging.
 Your job: given a TOPIC, propose well-formed candidate claims that connect two concepts, each grounded in a REAL, citable scientific source.
 
 Hard rules:

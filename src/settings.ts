@@ -1,4 +1,4 @@
-// GraceAge Knowledge — runtime settings (key/value in the existing `meta` table).
+// Healthy Aging Knowledge — runtime settings (key/value in the existing `meta` table).
 // Used to switch each agent's model at runtime without a redeploy: a value set
 // here overrides the env default, and the agents read it at the start of every
 // cycle, so a change takes effect on the next scheduled run.

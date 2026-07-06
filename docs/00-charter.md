@@ -1,14 +1,14 @@
 # 00 · Product Charter
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
-This is the founding document of GraceAge Knowledge. It defines *why* this
+This is the founding document of Healthy Aging Knowledge. It defines *why* this
 project exists and what success looks like. It changes rarely; everything else
 in `docs/` should remain consistent with it.
 
 ## 中文摘要
 
-本文件是 GraceAge Knowledge 的奠基文档，定义项目**为何存在**以及**成功的样子**。
+本文件是 Healthy Aging Knowledge 的奠基文档，定义项目**为何存在**以及**成功的样子**。
 核心愿景：建立一个关于健康老龄化的、世界一流的、开放且可追溯证据的知识图谱。
 主要用户先是创建者本人——在多年经验积累之后，找到了个人兴趣与一项长期事业的契合点，
 投身于健康老龄化研究；随后扩展到研究者、CCA 学生、照护者与临床人员。核心理念是"万物互联、证据可溯"。明确的**非目标**包括：它不是聊天机器人、
@@ -21,7 +21,7 @@ in `docs/` should remain consistent with it.
 Build the **world's best open knowledge graph about aging well** — a connected,
 evidence-traceable map of the concepts, interventions, evidence, and people that
 shape healthy aging. Where most knowledge about aging lives in scattered papers,
-guidelines, and clinicians' heads, GraceAge Knowledge makes it **explicit,
+guidelines, and clinicians' heads, Healthy Aging Knowledge makes it **explicit,
 linked, and queryable** — by humans and by AI.
 
 ## Mission
@@ -73,7 +73,7 @@ long-term commitment to healthy-aging research.
 
 ## Non-goals (explicit)
 
-To keep scope honest, GraceAge Knowledge is **not**:
+To keep scope honest, Healthy Aging Knowledge is **not**:
 
 - ❌ **A chatbot / conversational companion.** That is the separate *GraceAge
   Companion* pillar. Knowledge may *power* it, but is not it.

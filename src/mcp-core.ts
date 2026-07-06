@@ -1,4 +1,4 @@
-// GraceAge Knowledge — MCP request handling, shared by the stdio server
+// Healthy Aging Knowledge — MCP request handling, shared by the stdio server
 // (src/mcp.ts) and the HTTP transport (POST /mcp in src/http.ts).
 import { registry, byName } from "./registry.ts";
 import type { Graph } from "./types.ts";

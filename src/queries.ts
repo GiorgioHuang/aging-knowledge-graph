@@ -1,4 +1,4 @@
-// GraceAge Knowledge — V0 query API. Answers a subset of the competency
+// Healthy Aging Knowledge — V0 query API. Answers a subset of the competency
 // questions (docs/08) over the in-memory graph. This is the minimal "API"
 // for V0; the same questions will later run as SQL / over an HTTP+MCP surface.
 

@@ -1,4 +1,4 @@
-// GraceAge Knowledge — automatic topic generation (keeps the curator fed).
+// Healthy Aging Knowledge — automatic topic generation (keeps the curator fed).
 // When the queue runs low, propose NEW healthy-aging research topics so the graph
 // keeps expanding without hand-curated topics. Quality is enforced structurally:
 // every generated topic must be tagged with a domain from the ontology's
@@ -13,7 +13,7 @@ import { seedTopics, slugId } from "./topics.ts";
 const DOMAINS = loadGraph().ontology.domains;
 const DOMAIN_SET = new Set(DOMAINS);
 
-const GEN_SYSTEM = `You generate NEW research topics for GraceAge Knowledge, an evidence-based knowledge graph STRICTLY about healthy aging / geriatrics (older adults, ~65+).
+const GEN_SYSTEM = `You generate NEW research topics for Healthy Aging Knowledge, an evidence-based knowledge graph STRICTLY about healthy aging / geriatrics (older adults, ~65+).
 
 Every topic MUST:
 - be squarely within healthy-aging / older-adult health scope, and map to exactly one of these domains: ${DOMAINS.join(", ")};

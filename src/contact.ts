@@ -1,4 +1,4 @@
-// GraceAge Knowledge — contact form storage.
+// Healthy Aging Knowledge — contact form storage.
 // Public visitors POST a message from the About page; it is stored in Postgres.
 // There is no email provider wired up, so the maintainer reads submissions via
 // the token-gated GET /contact/messages endpoint. The table is (re)created

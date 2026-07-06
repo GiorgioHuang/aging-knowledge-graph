@@ -1,6 +1,6 @@
 # 14 · Semantic Search & Backend
 
-> Part of **GraceAge Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
+> Part of **Healthy Aging Knowledge**. See the [doc map](../README.md#documentation-map--文档导航).
 
 Natural-language search over the graph, plus the **Neon (Postgres + pgvector)**
 backend. There are two interchangeable backends behind the same query layer:

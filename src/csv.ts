@@ -1,4 +1,4 @@
-// GraceAge Knowledge — tiny zero-dependency CSV parser (RFC-4180-ish).
+// Healthy Aging Knowledge — tiny zero-dependency CSV parser (RFC-4180-ish).
 // Returns an array of row objects keyed by the header row. Quoted fields,
 // embedded commas/newlines, and "" escapes are handled.
 

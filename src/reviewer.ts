@@ -1,4 +1,4 @@
-// GraceAge Knowledge — Reviewer agent.
+// Healthy Aging Knowledge — Reviewer agent.
 // VERIFIES what the curator produced. Promotion from `unverified` to `curated`
 // requires BOTH:
 //   1) Hard existence check — every cited PMID/DOI must actually resolve
@@ -41,7 +41,7 @@ interface ClaimRow {
 }
 interface EvidenceRow { id: string; source_id: string; quote: string | null; study_design: string | null }
 
-const SYSTEM = `You are the Reviewer for GraceAge Knowledge, an evidence-traceable knowledge graph about healthy aging.
+const SYSTEM = `You are the Reviewer for Healthy Aging Knowledge, an evidence-traceable knowledge graph about healthy aging.
 You judge whether a candidate claim is sound, in-scope, AND actually supported by its cited source(s). For each citation you are told whether it was independently verified to EXIST (resolved against PubMed/Crossref) and given the source's real title and abstract — do not re-judge existence, judge support and quality.
 
 Approve only if ALL hold:

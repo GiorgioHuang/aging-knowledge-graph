@@ -1,4 +1,4 @@
-// GraceAge Knowledge — one agent cycle (Cloud Run Job entrypoint).
+// Healthy Aging Knowledge — one agent cycle (Cloud Run Job entrypoint).
 // A single invocation: ensure schema → seed topics if empty → run the Curator
 // over N topics → run the Reviewer over M unverified claims → print a summary.
 // Cloud Scheduler invokes this Job on a schedule, giving "continuous" expansion.

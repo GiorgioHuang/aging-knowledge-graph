@@ -1,4 +1,4 @@
-// GraceAge Knowledge — source metadata fetch + mapping.
+// Healthy Aging Knowledge — source metadata fetch + mapping.
 // The Reviewer doesn't just check that a PMID/DOI EXISTS — it fetches the real
 // title + abstract so the judge can decide whether the source actually SUPPORTS
 // the claim, infers the study design from authoritative publication types, and
@@ -134,7 +134,7 @@ async function fetchCrossrefMeta(sourceId: string): Promise<SourceMeta> {
   const base: SourceMeta = { source_id: `DOI:${id}`, doi: `DOI:${id}`, exists: false };
   try {
     const res = await timedFetch(`https://api.crossref.org/works/${encodeURIComponent(id)}`, {
-      headers: { "user-agent": "GraceAgeKnowledge/1.0 (https://ack.icareu.ca)" },
+      headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" },
     });
     if (res.status === 404) return base;            // genuinely not found
     if (!res.ok) { base.lookupFailed = true; return base; }
@@ -204,7 +204,7 @@ export async function pubmedTitles(pmids: string[]): Promise<{ pmid: string; tit
 export async function crossrefSearch(query: string, rows = 5): Promise<{ doi: string; title: string; type?: string }[]> {
   try {
     const res = await timedFetch(`https://api.crossref.org/works?rows=${rows}&select=DOI,title,type&query.bibliographic=${encodeURIComponent(query)}`, {
-      headers: { "user-agent": "GraceAgeKnowledge/1.0 (https://ack.icareu.ca)" },
+      headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" },
     });
     if (!res.ok) return [];
     const j = (await res.json()) as { message?: { items?: { DOI?: string; title?: string[]; type?: string }[] } };

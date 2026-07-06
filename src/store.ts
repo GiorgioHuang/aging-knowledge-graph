@@ -1,4 +1,4 @@
-// GraceAge Knowledge — backend selection.
+// Healthy Aging Knowledge — backend selection.
 // Offline (no DATABASE_URL): load the graph from seed/ and search in-memory.
 // Neon (DATABASE_URL set): load the graph from Postgres and push vector search
 // down to pgvector.

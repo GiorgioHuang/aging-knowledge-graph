@@ -1,10 +1,10 @@
-# GraceAge Knowledge
+# Healthy Aging Knowledge
 
 > **Building AI for Aging Well.**
 > An open, evidence-traceable knowledge graph for healthy aging.
 > **Live:** https://ack.icareu.ca
 
-**GraceAge Knowledge** (this repository, `aging-knowledge-graph`) is the
+**Healthy Aging Knowledge** (this repository, `aging-knowledge-graph`) is the
 **knowledge / "Core"** pillar of the **GraceAge** research ecosystem. Its goal
 is to build the world's best **open knowledge graph about aging well** — a
 connected, machine-readable, evidence-backed map of everything we know about
@@ -20,7 +20,7 @@ over the next ~3 years.
 
 ## 中文摘要
 
-**GraceAge Knowledge** 是 **GraceAge** 研究生态系统中的 **知识 / 核心（Core）** 支柱。
+**Healthy Aging Knowledge** 是 **GraceAge** 研究生态系统中的 **知识 / 核心（Core）** 支柱。
 目标是构建一个关于"健康老龄化（Aging Well）"的、世界一流的、开放的 **知识图谱**——
 一张连接的、机器可读的、有证据支撑的知识地图，涵盖老年学、健康信息学与健康老龄化。
 
