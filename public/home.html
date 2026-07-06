@@ -28,7 +28,7 @@
   .gcontrols .gctitle { font-weight:600; color:var(--fg); }
   .gcontrols .gcheck { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
   .gcontrols .ghint { font-size:11px; color:var(--muted); line-height:1.4; }
-  .glegendpanel { left:12px; right:12px; bottom:12px; padding:8px 10px; max-height:26%; overflow:auto; }
+  .glegendpanel { left:12px; right:60px; bottom:12px; padding:8px 10px; max-height:26%; overflow:auto; }
   .glegendpanel .legend { margin-top:0; }
   .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:hidden; padding:0; font-size:13px; display:flex; flex-direction:column; }
   .gdetailpanel[hidden] { display:none; }   /* the explicit display:flex above would otherwise defeat the hidden attribute */
@@ -49,6 +49,11 @@
   .glegendpanel.min { left:12px; right:auto; }
   .glegendpanel.min .legend { display:none; }
   .glegendpanel.min .gphead { margin-bottom:0; }
+  /* zoom buttons (replace scroll-to-zoom, which fought page scrolling) */
+  .gzoom { right:12px; bottom:12px; padding:0; overflow:hidden; display:flex; flex-direction:column; }
+  .gzoom button { width:34px; height:34px; padding:0; background:transparent; border:0; color:var(--fg); font-size:18px; line-height:1; cursor:pointer; display:block; }
+  .gzoom button + button { border-top:1px solid var(--line); }
+  .gzoom button:hover { background:rgba(22,160,133,.18); color:var(--accent); }
   .gerr { top:12px; left:50%; transform:translateX(-50%); padding:8px 12px; color:#ff8a8a; }
   svg text { font-size:10px; fill:#e6edeb; pointer-events:none; paint-order:stroke; stroke:#0f1b19; stroke-width:3px; stroke-linejoin:round; }
   .legend { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--muted); }
@@ -113,15 +118,20 @@
     <canvas id="gcanvas"></canvas>
     <div class="goverlay gcontrols soft">
       <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
-      <div class="gctitle">Knowledge graph <span style="font-weight:400;color:var(--muted)">· Canvas · <a href="/home-svg" style="color:var(--accent)">try SVG</a></span></div>
+      <div class="gctitle">Knowledge graph</div>
       <button class="secondary" onclick="drawGraph()">Redraw / re-layout</button>
       <label class="gcheck"><input type="checkbox" id="showContext" onchange="toggleContext()"> show context nodes (papers · populations · mechanisms)<span id="ctxprog" style="color:var(--accent)"></span></label>
-      <div class="ghint">drag nodes · scroll to zoom · drag background to pan · click a node for detail · colour = node type</div>
+      <div class="ghint">drag nodes · +/− to zoom · drag background to pan · click a node for detail · colour = node type</div>
     </div>
     <div class="goverlay glegendpanel soft">
       <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
       <div class="gphead"><span class="gptitle">Legend</span></div>
       <div id="glegend" class="legend"></div>
+    </div>
+    <div class="goverlay gzoom">
+      <button onclick="gzoom(1.25)" title="zoom in" aria-label="zoom in">+</button>
+      <button onclick="gzoom(0.8)" title="zoom out" aria-label="zoom out">−</button>
+      <button onclick="gzoomReset()" title="reset view" aria-label="reset view">⟲</button>
     </div>
     <div class="goverlay gdetailpanel" id="detailpanel" hidden>
       <div class="gdhead">
@@ -155,7 +165,7 @@ const COLORS = { disease:"#e76f51", outcome:"#2a9d8f", population:"#8ab17d", exe
 
 const NS = "http://www.w3.org/2000/svg";
 const ACCENT = "#16a085";
-let RAF = null, pickSel = null, SIM = null;
+let RAF = null, pickSel = null, SIM = null, zoomBy = null, resetView = null;
 
 async function load() {
   try { $("backend").textContent = (await (await fetch("/health")).json()).backend; } catch { $("backend").textContent = "unreachable"; }
@@ -394,17 +404,27 @@ function drawGraph() {
   canvas.onpointerup = endPointer;
   canvas.onpointercancel = endPointer;
   canvas.onpointerleave = () => { if (!mode && hoverId) { hoverId = null; canvas.style.cursor = "default"; if (!running) draw(); } };
-  canvas.onwheel = (ev) => {
-    ev.preventDefault();
-    const s = toScreen(ev), k2 = Math.min(4, Math.max(0.3, view.k * (ev.deltaY < 0 ? 1.1 : 0.9)));
-    view.tx = s.x - (s.x - view.tx) * (k2 / view.k); view.ty = s.y - (s.y - view.ty) * (k2 / view.k); view.k = k2;
+  function zoomAround(sx, sy, factor) {
+    const k2 = Math.min(4, Math.max(0.3, view.k * factor));
+    view.tx = sx - (sx - view.tx) * (k2 / view.k); view.ty = sy - (sy - view.ty) * (k2 / view.k); view.k = k2;
     if (!running) draw();
+  }
+  zoomBy = (factor) => zoomAround(CW / 2, CH / 2, factor);   // buttons zoom around the canvas centre
+  resetView = () => { view.tx = 0; view.ty = 0; view.k = 1; if (!running) draw(); };
+  // plain wheel scrolls the page (no hijack); pinch-zoom (ctrl+wheel) still zooms the graph
+  canvas.onwheel = (ev) => {
+    if (!ev.ctrlKey) return;
+    ev.preventDefault();
+    const s = toScreen(ev);
+    zoomAround(s.x, s.y, ev.deltaY < 0 ? 1.1 : 0.9);
   };
 
   updateLegend();
   reheat(1);
   if ($("showContext") && $("showContext").checked) loadContext();
 }
+function gzoom(f) { if (zoomBy) zoomBy(f); }
+function gzoomReset() { if (resetView) resetView(); }
 function toggleContext() {
   if (!SIM) return;
   if ($("showContext").checked) SIM.loadContext(); else SIM.unloadContext();

@@ -433,12 +433,6 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         return res.end(html);
       }
-      // ---- SVG-rendered graph home (backup / comparison of the Canvas version) ----
-      if (path === "/home-svg" || path === "/home-svg.html") {
-        const html = readFileSync(join(here, "..", "public", "home-svg.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
-      }
       if (path === "/api") {
         return send(res, 200, {
           service: "graceage-knowledge",
