@@ -30,6 +30,8 @@
   .mu-item:nth-child(even) { background: #0f1b19; }
   .mu-item code { color: var(--muted); font-size: 11px; }
   .pill { flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; background: #0e2f2a; color: #7fd3c3; border-radius: 20px; padding: 1px 8px; }
+  .why { padding: 4px 10px 8px 32px; font-size: 12px; border-bottom: 1px solid var(--line); }
+  .why .whyrow { margin: 4px 0; } .why ul { margin: 2px 0 2px 4px; padding-left: 16px; } .why code { color: var(--muted); font-size: 11px; }
   .item { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .item .grow { flex:1; } .item code { color:var(--muted); }
   .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
@@ -205,15 +207,36 @@ async function showUnmapped() {
     if (status !== 200) { box.innerHTML = `<div class="out err">${escapeHtml(JSON.stringify(body))}</div>`; return; }
     const by = Object.entries(body.byType || {}).map(([t, n]) => `${t}: ${n}`).join(" · ") || "—";
     const rows = (body.items || []).map(n =>
-      `<div class="mu-item"><span class="pill">${escapeHtml(n.type)}</span>
+      `<div class="mu-wrap"><div class="mu-item"><span class="pill">${escapeHtml(n.type)}</span>
        <a href="/#${encodeURIComponent(n.id)}" target="_blank" rel="noopener">${escapeHtml(n.name)}</a>
-       <code>${escapeHtml(n.id)}</code>${n.checked ? "" : ' <span class="hint">(not yet checked)</span>'}</div>`).join("");
+       <code>${escapeHtml(n.id)}</code>${n.checked ? "" : ' <span class="hint">(not yet checked)</span>'}
+       <button class="mini secondary" onclick="whyUnmapped(this,'${encodeURIComponent(n.id)}')">why?</button></div>
+       <div class="why" hidden></div></div>`).join("");
     box.innerHTML = `<p class="hint"><b>${body.total}</b> node(s) with no code${body.items.length < body.total ? ` (showing ${body.items.length})` : ""} · ${by}</p>
       <div class="mulist">${rows || '<p class="hint">None — every eligible node has a code.</p>'}</div>`;
   } catch (e) { box.innerHTML = `<div class="out err">${escapeHtml(String((e && e.message) || e))}</div>`; }
   finally { btn.disabled = false; }
 }
 function escapeHtml(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// Explain why one node did/didn't get a code: per vocabulary, the terms searched,
+// the real candidates the authority returned, and the decision.
+async function whyUnmapped(btn, encId) {
+  const box = btn.closest(".mu-wrap").querySelector(".why");
+  box.hidden = false; box.innerHTML = '<span class="hint">checking…</span>'; btn.disabled = true;
+  try {
+    const { status, body } = await req("GET", "/admin/node-codes-preview?id=" + encId);
+    if (status !== 200) { box.innerHTML = `<span class="err">${escapeHtml(JSON.stringify(body))}</span>`; return; }
+    box.innerHTML = (body.targets || []).map(t => {
+      const cands = (t.candidates || []).map(c => `<li><code>${escapeHtml(c.curie)}</code> ${escapeHtml(c.label)}</li>`).join("");
+      return `<div class="whyrow"><b>${escapeHtml(t.prefix)}</b> <span class="hint">(${escapeHtml(t.source)})</span> — ${escapeHtml(t.decision)}`
+        + (t.queries && t.queries.length ? `<div class="hint">searched: ${t.queries.map(escapeHtml).join(" | ")}</div>` : "")
+        + (cands ? `<ul>${cands}</ul>` : (t.decision.indexOf("already") < 0 ? '<div class="hint">— no candidates —</div>' : ""))
+        + `</div>`;
+    }).join("") || '<span class="hint">no target vocabularies for this node type</span>';
+  } catch (e) { box.innerHTML = `<span class="err">${escapeHtml(String((e && e.message) || e))}</span>`; }
+  finally { btn.disabled = false; }
+}
 function renderLists() {
   const f = ($("filter").value || "").toLowerCase();
   const nm = id => (GRAPH.nodes.find(n => n.id === id) || {}).name || id;

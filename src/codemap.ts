@@ -295,6 +295,39 @@ export async function resolveCodesForNode(
   return { added, all: mergeCodes(existing, added) };
 }
 
+/** Explain WHY a node did/didn't get a code for each target vocabulary — the
+ *  terms searched, the real candidates the authority returned, and the decision.
+ *  Read-only (no writes), so it's safe to run for a single node on demand. */
+export interface TargetTrace { prefix: string; source: string; queries: string[]; candidates: Array<{ curie: string; label: string }>; decision: string }
+export async function diagnoseNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">, opts: { llm?: boolean } = {}): Promise<{ type: string; name: string; targets: TargetTrace[] }> {
+  const existing = node.external_ids ?? [];
+  const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
+  const variants = nameVariants(node.name, node.aliases ?? []);
+  const queries = searchTerms(node.name, node.aliases ?? []);
+  const targets: TargetTrace[] = [];
+  for (const t of vocabulariesForType(node.type)) {
+    if (havePrefix.has(t.prefix.toUpperCase())) { targets.push({ prefix: t.prefix, source: t.source, queries: [], candidates: [], decision: "already has a code" }); continue; }
+    const cands: Candidate[] = [];
+    const seen = new Set<string>();
+    let exact: Candidate | undefined;
+    for (const term of queries) {
+      for (const c of await runSearch(t, term)) {
+        if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
+        if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
+        if (!exact && acceptCurie(variants, c)) exact = c;
+      }
+      if (exact) break;
+    }
+    let decision: string;
+    if (exact) decision = `exact match → ${exact.curie}`;
+    else if (!cands.length) decision = "no candidates returned by the authority";
+    else if (!opts.llm) decision = `no exact match (${cands.length} candidates; AI off)`;
+    else { const curie = await pickWithLlm({ name: node.name, type: node.type, aliases: node.aliases, description: node.description }, cands.slice(0, 8)); decision = curie ? `AI chose → ${curie}` : `AI found no same-concept match (${cands.length} candidates)`; }
+    targets.push({ prefix: t.prefix, source: t.source, queries, candidates: cands.slice(0, 8).map((c) => ({ curie: c.curie, label: c.labels[0] ?? "" })), decision });
+  }
+  return { type: node.type, name: node.name, targets };
+}
+
 export interface MapSummary {
   scanned: number;
   mapped: number;

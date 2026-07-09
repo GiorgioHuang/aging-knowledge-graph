@@ -28,7 +28,7 @@ import { isLlmConfigured } from "./llm.ts";
 import { graphClaimQuality } from "./quality.ts";
 import { saveAskLog, listAskLogs } from "./asklog.ts";
 import { processGapQuestions } from "./gaptopics.ts";
-import { mapUnmappedNodes, listUnmappedNodes } from "./codemap.ts";
+import { mapUnmappedNodes, listUnmappedNodes, diagnoseNode } from "./codemap.ts";
 import { AGENTS, type AgentName } from "./models.ts";
 import * as Q from "./queries.ts";
 import type { Graph } from "./types.ts";
@@ -295,6 +295,20 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           return send(res, 200, await processGapQuestions({}));
         } catch (e) {
           return send(res, 502, { error: `gap triage failed: ${(e as Error).message}` });
+        }
+      }
+
+      // ---- standards mapping: explain why one node did/didn't get a code ----
+      if (path === "/admin/node-codes-preview" && req.method === "GET") {
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        const node = Q.getNode(g, decodeURIComponent(q.get("id") ?? ""));
+        if (!node) return send(res, 404, { error: "unknown node" });
+        try {
+          return send(res, 200, await diagnoseNode(node, { llm: q.get("llm") !== "0" && isLlmConfigured() }));
+        } catch (e) {
+          return send(res, 502, { error: `preview failed: ${(e as Error).message}` });
         }
       }
 
