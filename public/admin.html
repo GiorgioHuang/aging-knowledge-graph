@@ -25,6 +25,7 @@
   .out { white-space: pre-wrap; font: 12px/1.4 ui-monospace, monospace; background: #0f1b19; border: 1px solid var(--line); border-radius: 7px; padding: 10px; margin-top: 10px; max-height: 220px; overflow: auto; }
   .ok { color: var(--accent); } .err { color: var(--err); }
   .hint { font-size: 12px; color: var(--muted); }
+  .pager { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--muted); }
   .mulist { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 7px; padding: 4px 0; }
   .mu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 13px; }
   .mu-item:nth-child(even) { background: #0f1b19; }
@@ -122,15 +123,16 @@
   <fieldset>
     <legend>Browse / delete</legend>
     <p><button class="secondary" onclick="reload()">Refresh</button>
-       <input id="filter" placeholder="filter nodes…" oninput="renderLists()" style="width:200px;display:inline-block" /></p>
+       <input id="filter" placeholder="filter nodes…" oninput="nodePage=0;renderLists()" style="width:200px;display:inline-block" /></p>
     <strong>Nodes</strong><div id="nodeList"></div>
+    <div id="nodePager" class="pager"></div>
     <strong style="display:block;margin-top:12px">Claims</strong><div id="claimList"></div>
   </fieldset>
 
   <footer class="site-footer">
     <div>Curator console · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
     <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/review">review queue</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
-    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL)</div>
+    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) <span class="fver" title="build version" style="opacity:.55;font-size:11px">· {{VERSION}}</span></div>
     <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
   </footer>
 </main>
@@ -139,6 +141,7 @@
 const $ = (id) => document.getElementById(id);
 let GRAPH = { nodes: [], edges: [] };
 let editId = null;
+let nodePage = 0;
 
 const fill = (sel, items, blank) => sel.innerHTML = (blank ? ["<option value=''></option>"] : []).concat(items.map(i => `<option>${i}</option>`)).join("");
 const show = (el, obj, ok) => { el.hidden = false; el.className = "out " + (ok ? "ok" : "err"); el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2); };
@@ -248,15 +251,24 @@ async function whyUnmapped(btn, encId) {
   } catch (e) { box.innerHTML = `<span class="err">${escapeHtml(String((e && e.message) || e))}</span>`; }
   finally { btn.disabled = false; }
 }
+const NODES_PER_PAGE = 20;
 function renderLists() {
   const f = ($("filter").value || "").toLowerCase();
   const nm = id => (GRAPH.nodes.find(n => n.id === id) || {}).name || id;
-  $("nodeList").innerHTML = GRAPH.nodes
-    .filter(n => !f || n.id.toLowerCase().includes(f) || n.name.toLowerCase().includes(f))
+  const nodes = GRAPH.nodes.filter(n => !f || n.id.toLowerCase().includes(f) || n.name.toLowerCase().includes(f));
+  const pages = Math.max(1, Math.ceil(nodes.length / NODES_PER_PAGE));
+  if (nodePage >= pages) nodePage = pages - 1;
+  if (nodePage < 0) nodePage = 0;
+  const slice = nodes.slice(nodePage * NODES_PER_PAGE, nodePage * NODES_PER_PAGE + NODES_PER_PAGE);
+  $("nodeList").innerHTML = slice
     .map(n => `<div class="item"><span class="grow">${n.name} <code>${n.id} · ${n.type}</code></span>
      <button class="mini secondary" onclick="openNode('${n.id}')">view</button>
      <button class="mini secondary" onclick="editNode('${n.id}')">edit</button>
-     <button class="mini danger" onclick="del('nodes','${n.id}')">del</button></div>`).join("");
+     <button class="mini danger" onclick="del('nodes','${n.id}')">del</button></div>`).join("") || '<div class="hint">no matching nodes</div>';
+  const from = nodes.length ? nodePage * NODES_PER_PAGE + 1 : 0, to = Math.min(nodes.length, (nodePage + 1) * NODES_PER_PAGE);
+  $("nodePager").innerHTML = `<button class="mini secondary" ${nodePage <= 0 ? "disabled" : ""} onclick="nodePage--;renderLists()">‹ prev</button>
+    <span>${from}–${to} of ${nodes.length}${pages > 1 ? ` · page ${nodePage + 1}/${pages}` : ""}</span>
+    <button class="mini secondary" ${nodePage >= pages - 1 ? "disabled" : ""} onclick="nodePage++;renderLists()">next ›</button>`;
   $("claimList").innerHTML = GRAPH.edges
     .filter(e => !f || nm(e.source).toLowerCase().includes(f) || nm(e.target).toLowerCase().includes(f))
     .map(e => `<div class="item"><span class="grow">${nm(e.source)} <code>${e.type}${e.direction ? " (" + e.direction + ")" : ""}</code> ${nm(e.target)} <code>${e.dose ? e.dose + " · " : ""}${e.comparator ? "vs " + e.comparator + " · " : ""}${e.certainty || ""} ${e.status}</code></span>

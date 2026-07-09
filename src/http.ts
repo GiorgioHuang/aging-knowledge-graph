@@ -50,6 +50,15 @@ function send(res: import("node:http").ServerResponse, status: number, body: unk
   res.end(text);
 }
 
+// Build version shown in page footers so a deploy is verifiable at a glance.
+// COMMIT_SHA is injected at deploy time; K_REVISION (Cloud Run) is a fallback.
+export const BUILD_VERSION = (process.env.COMMIT_SHA || process.env.K_REVISION || "dev").slice(0, 7);
+function sendHtml(res: import("node:http").ServerResponse, file: string): void {
+  const html = readFileSync(join(here, "..", "public", file), "utf8").replace(/\{\{VERSION\}\}/g, BUILD_VERSION);
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  res.end(html);
+}
+
 /** The token presented on a request, via `Authorization: Bearer <t>` or HTTP
  *  Basic auth (the password half). Basic support lets the management UI reuse
  *  the browser's cached login credentials — no separate token field needed. */
@@ -234,16 +243,12 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
 
       // ---- public read-only browse page (clickable citations) ----
       if (path === "/browse" || path === "/browse.html") {
-        const html = readFileSync(join(here, "..", "public", "browse.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
+        return sendHtml(res, "browse.html");
       }
 
       // ---- project about / introduction page ----
       if (path === "/about" || path === "/about.html") {
-        const html = readFileSync(join(here, "..", "public", "about.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
+        return sendHtml(res, "about.html");
       }
 
       // ---- grounded Q&A: retrieve claims + evidence, LLM answers with citations ----
@@ -388,9 +393,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
       // ---- human review console (management UI — not publicly browsable) ----
       if (path === "/review" || path === "/review.html") {
         if (!requireManagementAuth(req, res)) return;
-        const html = readFileSync(join(here, "..", "public", "review.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
+        return sendHtml(res, "review.html");
       }
       if (path === "/review/queue" && req.method === "GET") {
         if (!isDbConfigured()) return send(res, 503, { error: "the review queue requires a database (DATABASE_URL)" });
@@ -432,9 +435,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
       // ---- curation UI (management UI — not publicly browsable) ----
       if (path === "/admin" || path === "/admin.html") {
         if (!requireManagementAuth(req, res)) return;
-        const html = readFileSync(join(here, "..", "public", "admin.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
+        return sendHtml(res, "admin.html");
       }
       if (/^\/(logo|logo-dark|logo-mark|favicon)\.svg$/.test(path) && req.method === "GET") {
         const svg = readFileSync(join(here, "..", "public", path.slice(1)), "utf8");
@@ -482,9 +483,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
       }
 
       if (path === "/" || path === "/index.html") {
-        const html = readFileSync(join(here, "..", "public", "home.html"), "utf8");
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-        return res.end(html);
+        return sendHtml(res, "home.html");
       }
       if (path === "/api") {
         return send(res, 200, {

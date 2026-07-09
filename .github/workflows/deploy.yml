@@ -78,7 +78,8 @@ jobs:
             --region "${{ vars.GCP_REGION || 'us-east1' }}" \
             --allow-unauthenticated \
             --port 8080 \
-            --update-secrets "$SECRETS"
+            --update-secrets "$SECRETS" \
+            --update-env-vars "COMMIT_SHA=${{ github.sha }}"
 
       - name: Deploy agents Job
         # Keeps the Curator + Reviewer Cloud Run Job (scripts/agent-run.ts) in
