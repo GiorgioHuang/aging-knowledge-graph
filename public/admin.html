@@ -177,9 +177,9 @@ function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "no
 // already-checked flag so it can't paginate to completion).
 async function mapCodes() {
   const out = $("mc_out"), btn = $("mc_btn"), force = $("mc_force").checked, ai = $("mc_ai").checked;
-  const PER = ai ? 10 : 20;   // AI path is slower per node, so use smaller batches
+  const PER = 60;   // the server bounds each request by TIME, so a large cap just means fewer round-trips
   btn.disabled = true;
-  let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0;
+  let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0, fails = 0;
   try {
     do {
       round++;
@@ -187,7 +187,13 @@ async function mapCodes() {
       // force only on the first round: it resets the checked flag once, then the
       // remaining rounds paginate normally to completion.
       const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force: force && round === 1, llm: ai });
-      if (status !== 200) { show(out, body, false); return; }
+      if (status !== 200) {
+        // A round can occasionally time out at the gateway; retry a few times
+        // before giving up, since progress is already persisted server-side.
+        if (++fails <= 4) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        show(out, typeof body === "object" && body.error ? body : `request failed (status ${status}) after retries`, false); return;
+      }
+      fails = 0;
       scanned += body.scanned; mapped += body.mapped; added += body.codesAdded; remaining = body.remaining;
       if (body.scanned === 0) break;
     } while (remaining > 0);

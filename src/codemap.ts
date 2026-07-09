@@ -230,9 +230,9 @@ export function parseOrcid(json: unknown, term: string): Candidate[] {
 // ---- network (runs in production; not exercised by the offline test suite) ----
 async function jget(url: string): Promise<unknown> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 400));
+    if (attempt) await new Promise((r) => setTimeout(r, 300));
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const timer = setTimeout(() => ctrl.abort(), 8000); // keep per-lookup bounded so a slow authority can't blow the request budget
     try {
       const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)", accept: "application/json" } });
       if (res.status === 429 || res.status >= 500) continue;
@@ -375,8 +375,9 @@ export interface MapSummary {
 /** Batch-map nodes that haven't been checked yet (or all, when force). Persists
  *  accepted codes to external_ids and stamps codes_checked_at so each node is
  *  processed once. Bounded per call to respect API rate limits. */
-export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { limit?: number; force?: boolean; llm?: boolean } = {}): Promise<MapSummary> {
+export async function mapUnmappedNodes({ limit = 25, force = false, llm, maxMs = 45000 }: { limit?: number; force?: boolean; llm?: boolean; maxMs?: number } = {}): Promise<MapSummary> {
   if (!isDbConfigured()) throw new Error("standards mapping requires a database (DATABASE_URL)");
+  const start = Date.now();
   const useLlm = (llm ?? true) && isLlmConfigured(); // AI disambiguation, only if an API key is present
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
@@ -396,9 +397,13 @@ export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { lim
   const seed = loadGraph();
   const seedCodes = (id: string) => new Set(seed.nodes.get(id)?.external_ids ?? []);
 
-  let mapped = 0, codesAdded = 0;
+  let mapped = 0, codesAdded = 0, scanned = 0;
   const details: MapSummary["details"] = [];
   for (const r of rows) {
+    // Time budget: return promptly so the HTTP request never hits a gateway
+    // timeout; the client loops until `remaining` is 0. Always do at least one.
+    if (scanned > 0 && Date.now() - start > maxMs) break;
+    scanned++;
     const existing = r.external_ids ?? [];
     const prevAuto = r.codes_auto ?? [];
     // On a re-map, strip codes the resolver could have added (target-vocab codes
@@ -421,7 +426,7 @@ export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { lim
     `SELECT count(*)::int AS remaining FROM node WHERE type = ANY($1) AND codes_checked_at IS NULL`,
     [TYPES_WITH_TARGETS],
   )) as Array<{ remaining: number }>;
-  return { scanned: rows.length, mapped, codesAdded, remaining, details };
+  return { scanned, mapped, codesAdded, remaining, details };
 }
 
 /** Eligible-type nodes that still carry NO standard code (external_ids empty),
