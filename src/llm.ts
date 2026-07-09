@@ -68,8 +68,9 @@ export async function completeWithUsage(messages: LlmMessage[], opts: LlmOptions
   let res: Response | undefined;
   let lastErr = "";
   const timeoutMs = Number(process.env.LLM_TIMEOUT_MS) || 180000; // 3 min — adaptive thinking can be slow
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 * attempt));
+  const attempts = Number(process.env.LLM_RETRIES) || 5;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, Math.min(8000, 800 * 2 ** (attempt - 1))));
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -79,7 +80,12 @@ export async function completeWithUsage(messages: LlmMessage[], opts: LlmOptions
     } finally {
       clearTimeout(timer);
     }
-    if (res.status === 429 || res.status >= 500) { lastErr = `Anthropic API error ${res.status}`; continue; }
+    if (res.status === 429 || res.status === 529 || res.status >= 500) {
+      lastErr = `Anthropic API error ${res.status}`;
+      const ra = Number(res.headers.get("retry-after")); // honour Retry-After (seconds) when present
+      if (Number.isFinite(ra) && ra > 0) await new Promise((r) => setTimeout(r, Math.min(15000, ra * 1000)));
+      continue;
+    }
     break;
   }
   if (!res) throw new Error(`Anthropic request failed after retries: ${lastErr}`);

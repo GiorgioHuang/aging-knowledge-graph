@@ -40,12 +40,19 @@ export function parseTermSuggestions(text: string): string[] {
   return arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3);
 }
 
+// Batch diagnostics — the AI/lookup helpers swallow errors (a failed call just
+// means "no match"), which hides WHY a batch under-performs. Count attempts and
+// failures and keep the last error so mapUnmappedNodes can report them.
+interface Diag { aiCalls: number; aiFail: number; lookups: number; lookupFail: number; lastError: string }
+let DIAG: Diag = { aiCalls: 0, aiFail: 0, lookups: 0, lookupFail: 0, lastError: "" };
+
 async function suggestVocabTerms(node: TermNode): Promise<string[]> {
+  DIAG.aiCalls++;
   try {
     const text = await complete([{ role: "user", content: buildTermPrompt(node) }],
       { system: TERM_SYSTEM, maxTokens: 150, thinking: false, model: CODEMAP_MODEL });
     return parseTermSuggestions(text);
-  } catch { return []; }
+  } catch (e) { DIAG.aiFail++; DIAG.lastError = "AI: " + String((e as Error).message).slice(0, 180); return []; }
 }
 
 // Verification gate: a match found only via an AI-suggested term is confirmed to
@@ -62,11 +69,12 @@ export function parseVerifyDecision(text: string): boolean {
   try { return extractJson<{ same?: unknown }>(text).same === true; } catch { return false; }
 }
 async function confirmSameConcept(node: TermNode, candidate: Candidate): Promise<boolean> {
+  DIAG.aiCalls++;
   try {
     const text = await complete([{ role: "user", content: buildVerifyPrompt(node, candidate) }],
       { system: VERIFY_SYSTEM, maxTokens: 60, thinking: false, model: CODEMAP_MODEL });
     return parseVerifyDecision(text);
-  } catch { return false; }
+  } catch (e) { DIAG.aiFail++; DIAG.lastError = "AI: " + String((e as Error).message).slice(0, 180); return false; }
 }
 
 export interface Target { prefix: string; source: "ols" | "mesh" | "rxnorm" | "ror" | "orcid"; ontology?: string }
@@ -229,17 +237,20 @@ export function parseOrcid(json: unknown, term: string): Candidate[] {
 
 // ---- network (runs in production; not exercised by the offline test suite) ----
 async function jget(url: string): Promise<unknown> {
+  DIAG.lookups++;
+  let lastErr = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) await new Promise((r) => setTimeout(r, 300));
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000); // bounded so a slow authority can't blow the request budget, but generous enough to avoid flaky misses
     try {
       const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)", accept: "application/json" } });
-      if (res.status === 429 || res.status >= 500) continue;
-      if (!res.ok) return null;
+      if (res.status === 429 || res.status >= 500) { lastErr = `${new URL(url).host} ${res.status}`; continue; }
+      if (!res.ok) { DIAG.lookupFail++; DIAG.lastError = `lookup: ${new URL(url).host} ${res.status}`; return null; }
       return await res.json();
-    } catch { /* retry */ } finally { clearTimeout(timer); }
+    } catch (e) { lastErr = `${new URL(url).host} ${(e as Error).message}`; } finally { clearTimeout(timer); }
   }
+  DIAG.lookupFail++; DIAG.lastError = "lookup: " + lastErr.slice(0, 180);
   return null;
 }
 
@@ -396,6 +407,7 @@ export interface MapSummary {
   codesAdded: number;
   remaining: number;
   details: Array<{ id: string; name: string; added: string[] }>;
+  diag: Diag;
 }
 
 /** Batch-map nodes that haven't been checked yet (or all, when force). Persists
@@ -404,6 +416,7 @@ export interface MapSummary {
 export async function mapUnmappedNodes({ limit = 25, reset = false, remap = false, llm, maxMs = 45000 }: { limit?: number; reset?: boolean; remap?: boolean; llm?: boolean; maxMs?: number } = {}): Promise<MapSummary> {
   if (!isDbConfigured()) throw new Error("standards mapping requires a database (DATABASE_URL)");
   const start = Date.now();
+  DIAG = { aiCalls: 0, aiFail: 0, lookups: 0, lookupFail: 0, lastError: "" }; // per-request diagnostics
   const useLlm = (llm ?? true) && isLlmConfigured(); // AI disambiguation, only if an API key is present
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
@@ -457,7 +470,7 @@ export async function mapUnmappedNodes({ limit = 25, reset = false, remap = fals
     `SELECT count(*)::int AS remaining FROM node WHERE type = ANY($1) AND codes_checked_at IS NULL`,
     [TYPES_WITH_TARGETS],
   )) as Array<{ remaining: number }>;
-  return { scanned, mapped, codesAdded, remaining, details };
+  return { scanned, mapped, codesAdded, remaining, details, diag: DIAG };
 }
 
 /** Eligible-type nodes that still carry NO standard code (external_ids empty),

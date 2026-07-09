@@ -179,11 +179,11 @@ async function mapCodes() {
   const out = $("mc_out"), btn = $("mc_btn"), force = $("mc_force").checked, ai = $("mc_ai").checked;
   const PER = 60;   // the server bounds each request by TIME, so a large cap just means fewer round-trips
   btn.disabled = true;
-  let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0, fails = 0;
+  let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0, fails = 0, lastDiag = null;
   try {
     do {
       round++;
-      show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})`, true);
+      show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})${lastDiag ? ` · AI ${lastDiag.aiFail}/${lastDiag.aiCalls} failed · lookups ${lastDiag.lookupFail}/${lastDiag.lookups} failed${lastDiag.lastError ? ` · ${lastDiag.lastError}` : ""}` : ""}`, true);
       // force only on the first round: it resets the checked flag once, then the
       // remaining rounds paginate normally to completion.
       // reset only on round 1 (clears the checked flag once); remap every round
@@ -197,9 +197,11 @@ async function mapCodes() {
       }
       fails = 0;
       scanned += body.scanned; mapped += body.mapped; added += body.codesAdded; remaining = body.remaining;
+      lastDiag = body.diag || lastDiag;
       if (body.scanned === 0) break;
     } while (remaining > 0);
-    show(out, `Done — scanned ${scanned}, ${mapped} nodes updated, ${added} codes added, ${remaining} still unchecked.`, true);
+    const d = lastDiag ? ` · AI ${lastDiag.aiFail}/${lastDiag.aiCalls} failed · lookups ${lastDiag.lookupFail}/${lastDiag.lookups} failed${lastDiag.lastError ? ` · last error: ${lastDiag.lastError}` : ""}` : "";
+    show(out, `Done — scanned ${scanned}, ${mapped} nodes updated, ${added} codes added, ${remaining} still unchecked.${d}`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
