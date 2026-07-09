@@ -118,7 +118,11 @@ E-utilities, **RxNorm** (drugs) via NLM RxNav, **ROR** (organisations) via the R
 API, and **ORCID** (experts) via the ORCID public API. It never trusts an LLM for
 an identifier: a code is accepted only when the authority's own label/synonym
 matches the node's name or an alias (ORCID additionally requires a *unique* exact
-name match, since person names collide). Run it from the **Maintenance** panel in
+name match, since person names collide). When no exact label matches, an optional
+**AI disambiguation** step (a small model, on by default) picks the best of the
+authority's *real* returned candidates — it can only choose from that list, so it
+still can't invent an identifier — which lifts recall on descriptive node names.
+Run it from the **Maintenance** panel in
 `/admin` (a button that loops batches to completion) or via `POST /admin/map-codes`
 (token-gated; `{limit, force}`). Resolved codes are merged into `external_ids` and
 shown as authority links in the node view. Only open-licence codes are attached —

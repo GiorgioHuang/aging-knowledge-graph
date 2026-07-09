@@ -110,6 +110,7 @@
     <p>
       <button id="mc_btn" onclick="mapCodes()">Map standard codes</button>
       <button class="secondary" id="mu_btn" onclick="showUnmapped()">Show unmapped nodes</button>
+      <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_ai" checked> use AI to disambiguate (better recall)</label>
       <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_force"> re-map ALL nodes (reset &amp; re-run, even already-checked)</label>
     </p>
     <div id="mc_out" class="out" hidden></div>
@@ -173,8 +174,8 @@ function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "no
 // (or runs a single re-check batch when "force" is ticked, which ignores the
 // already-checked flag so it can't paginate to completion).
 async function mapCodes() {
-  const out = $("mc_out"), btn = $("mc_btn"), force = $("mc_force").checked;
-  const PER = 20;
+  const out = $("mc_out"), btn = $("mc_btn"), force = $("mc_force").checked, ai = $("mc_ai").checked;
+  const PER = ai ? 10 : 20;   // AI path is slower per node, so use smaller batches
   btn.disabled = true;
   let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0;
   try {
@@ -183,7 +184,7 @@ async function mapCodes() {
       show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})`, true);
       // force only on the first round: it resets the checked flag once, then the
       // remaining rounds paginate normally to completion.
-      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force: force && round === 1 });
+      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force: force && round === 1, llm: ai });
       if (status !== 200) { show(out, body, false); return; }
       scanned += body.scanned; mapped += body.mapped; added += body.codesAdded; remaining = body.remaining;
       if (body.scanned === 0) break;

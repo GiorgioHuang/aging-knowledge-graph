@@ -321,7 +321,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         let body: Record<string, unknown> = {};
         try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
         try {
-          const out = await mapUnmappedNodes({ limit: Number(body.limit) || 25, force: Boolean(body.force) });
+          const out = await mapUnmappedNodes({ limit: Number(body.limit) || 25, force: Boolean(body.force), llm: body.llm !== false });
           if (state.reload) await state.reload();
           return send(res, 200, out);
         } catch (e) {

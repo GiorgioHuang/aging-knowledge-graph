@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   vocabulariesForType, normTerm, acceptCurie, mergeCodes, codeUrl,
   parseOls, parseMeshSummary, parseRxnorm, parseRor, parseOrcid,
-  deParen, parenParts, nameVariants, searchTerms, TYPES_WITH_TARGETS,
+  deParen, parenParts, nameVariants, searchTerms,
+  buildDisambigPrompt, parseDisambigChoice, TYPES_WITH_TARGETS,
 } from "../src/codemap.ts";
 
 test("vocabulariesForType maps node types to open vocabularies (doc 10 §3)", () => {
@@ -73,10 +74,10 @@ test("parseOls extracts obo_id + labels for the wanted vocab, drops others", () 
 test("parseMeshSummary extracts MESH:Dxxxxxx + descriptor terms", () => {
   const json = { result: {
     uids: ["68055948"],
-    "68055948": { ds_meshui: "D055948", ds_meshterms: ["Sarcopenia"] },
+    "68055948": { ds_meshui: "D055948", ds_meshterms: ["Sarcopenia"], ds_scopenote: "Age-related loss of muscle." },
   } };
   const cands = parseMeshSummary(json);
-  assert.deepEqual(cands, [{ curie: "MESH:D055948", labels: ["Sarcopenia"] }]);
+  assert.deepEqual(cands, [{ curie: "MESH:D055948", labels: ["Sarcopenia"], def: "Age-related loss of muscle." }]);
   assert.deepEqual(parseMeshSummary({}), []);
 });
 
@@ -90,6 +91,27 @@ test("parseRor maps org hits to ROR curies with name/alias/acronym labels", () =
   const json = { items: [{ id: "https://ror.org/03vek6s52", name: "Harvard University", acronyms: ["HU"], aliases: ["Harvard"] }] };
   assert.deepEqual(parseRor(json), [{ curie: "ROR:03vek6s52", labels: ["Harvard University", "Harvard", "HU"] }]);
   assert.deepEqual(parseRor({ items: [] }), []);
+});
+
+test("buildDisambigPrompt lists the real candidates (curie + labels + def)", () => {
+  const cands = [
+    { curie: "MESH:D000058", labels: ["Accidental Falls"], def: "Falls due to slipping or tripping." },
+    { curie: "MESH:D004236", labels: ["Diet"] },
+  ];
+  const p = buildDisambigPrompt({ name: "risk of falls", type: "outcome" }, cands);
+  assert.match(p, /0\. MESH:D000058 — Accidental Falls — Falls due to/);
+  assert.match(p, /1\. MESH:D004236 — Diet/);
+  assert.match(p, /risk of falls/);
+  assert.match(p, /"choice"/);
+});
+
+test("parseDisambigChoice maps the model's choice to a real candidate (or null)", () => {
+  const cands = [{ curie: "MESH:D000058", labels: ["Accidental Falls"] }, { curie: "MESH:D004236", labels: ["Diet"] }];
+  assert.equal(parseDisambigChoice('{"choice": 0}', cands), "MESH:D000058");
+  assert.equal(parseDisambigChoice('sure — {"choice": 1} is best', cands), "MESH:D004236");
+  assert.equal(parseDisambigChoice('{"choice": -1}', cands), null);       // none
+  assert.equal(parseDisambigChoice('{"choice": 5}', cands), null);        // out of range → can't invent
+  assert.equal(parseDisambigChoice("no json here", cands), null);
 });
 
 test("parseOrcid accepts only a unique exact-name match (person collisions are unsafe)", () => {

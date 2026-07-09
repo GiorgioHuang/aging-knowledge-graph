@@ -9,10 +9,49 @@
 // the PubMed citation resolver; the pure logic here is unit-tested offline.
 import { getSql, isDbConfigured } from "./db.ts";
 import { NCBI_KEY } from "./sources.ts";
+import { complete, isLlmConfigured, extractJson } from "./llm.ts";
 import type { Node } from "./types.ts";
 
+// A small, fast model is plenty for "pick the matching term from this list".
+const DISAMBIG_MODEL = process.env.CODEMAP_MODEL || "claude-haiku-4-5";
+const DISAMBIG_SYSTEM = `You map a healthy-aging knowledge-graph node to a controlled-vocabulary term.
+Given a node and a NUMBERED list of REAL candidate terms from an authority, choose the ONE candidate that denotes the SAME concept as the node (a synonym, or the node's exact concept — not merely related or broader/narrower).
+If none is clearly the same concept, choose -1. Never invent a term. Prefer precision: when unsure, return -1.
+Respond with JSON only: {"choice": <index or -1>}.`;
+
+type DisambigNode = { name: string; type: string; aliases?: string[]; description?: string };
+export function buildDisambigPrompt(node: DisambigNode, candidates: Candidate[]): string {
+  const list = candidates.map((c, i) =>
+    `${i}. ${c.curie} — ${c.labels.slice(0, 4).join(" / ")}${c.def ? " — " + String(c.def).slice(0, 240) : ""}`).join("\n");
+  return `Node:
+- name: ${node.name}
+- type: ${node.type}${node.aliases?.length ? `\n- aliases: ${node.aliases.join(", ")}` : ""}${node.description ? `\n- description: ${node.description}` : ""}
+
+Candidates:
+${list}
+
+Which candidate denotes the SAME concept as the node? Reply JSON only: {"choice": <index or -1>}.`;
+}
+
+/** Parse the model's {"choice": n} into a candidate CURIE (null if -1 / invalid). */
+export function parseDisambigChoice(text: string, candidates: Candidate[]): string | null {
+  let obj: { choice?: unknown };
+  try { obj = extractJson(text); } catch { return null; }
+  const n = typeof obj.choice === "number" ? obj.choice : Number(obj.choice);
+  if (!Number.isInteger(n) || n < 0 || n >= candidates.length) return null;
+  return candidates[n].curie;
+}
+
+async function pickWithLlm(node: DisambigNode, candidates: Candidate[]): Promise<string | null> {
+  try {
+    const text = await complete([{ role: "user", content: buildDisambigPrompt(node, candidates) }],
+      { system: DISAMBIG_SYSTEM, maxTokens: 120, thinking: false, model: DISAMBIG_MODEL });
+    return parseDisambigChoice(text, candidates);
+  } catch { return null; }
+}
+
 export interface Target { prefix: string; source: "ols" | "mesh" | "rxnorm" | "ror" | "orcid"; ontology?: string }
-export interface Candidate { curie: string; labels: string[] }
+export interface Candidate { curie: string; labels: string[]; def?: string }
 
 // Per docs/10-standards-alignment.md §3 — open primaries that are resolvable via
 // a key-free API (EBI OLS4 for OBO ontologies; NLM E-utilities for MeSH; NLM
@@ -121,7 +160,8 @@ export function parseOls(json: unknown, prefix: string): Candidate[] {
     const obo = d.obo_id as string | undefined;
     if (!obo || obo.split(":")[0].toUpperCase() !== prefix.toUpperCase()) continue;
     const syn = Array.isArray(d.synonym) ? (d.synonym as string[]) : [];
-    out.push({ curie: obo, labels: [d.label as string, ...syn].filter(Boolean) });
+    const desc = Array.isArray(d.description) ? (d.description as string[])[0] : (typeof d.description === "string" ? d.description : undefined);
+    out.push({ curie: obo, labels: [d.label as string, ...syn].filter(Boolean), def: desc });
   }
   return out;
 }
@@ -133,8 +173,8 @@ export function parseMeshSummary(json: unknown): Candidate[] {
   const uids = (result.uids as string[]) ?? [];
   const out: Candidate[] = [];
   for (const uid of uids) {
-    const r = result[uid] as { ds_meshui?: string; ds_meshterms?: string[] } | undefined;
-    if (r?.ds_meshui) out.push({ curie: `MESH:${r.ds_meshui}`, labels: Array.isArray(r.ds_meshterms) ? r.ds_meshterms : [] });
+    const r = result[uid] as { ds_meshui?: string; ds_meshterms?: string[]; ds_scopenote?: string } | undefined;
+    if (r?.ds_meshui) out.push({ curie: `MESH:${r.ds_meshui}`, labels: Array.isArray(r.ds_meshterms) ? r.ds_meshterms : [], def: r.ds_scopenote });
   }
   return out;
 }
@@ -184,7 +224,9 @@ async function jget(url: string): Promise<unknown> {
 }
 
 async function olsSearch(term: string, ontology: string, prefix: string): Promise<Candidate[]> {
-  const url = `https://www.ebi.ac.uk/ols4/api/search?q=${encodeURIComponent(term)}&ontology=${ontology}&exact=true&rows=5&fieldList=obo_id,label,synonym,ontology_name`;
+  // Ranked (not exact): an exact label still ranks first (cheap-accepted by
+  // acceptCurie), and the rest become candidates for LLM disambiguation.
+  const url = `https://www.ebi.ac.uk/ols4/api/search?q=${encodeURIComponent(term)}&ontology=${ontology}&rows=6&fieldList=obo_id,label,synonym,description,ontology_name`;
   return parseOls(await jget(url), prefix);
 }
 
@@ -218,9 +260,13 @@ async function runSearch(t: Target, term: string): Promise<Candidate[]> {
 }
 
 /** Resolve open CURIEs for one node. Skips vocabularies the node already has a
- *  code for. Queries each authority with the node's name variants and accepts a
- *  code only on a verified label match. Returns additions + merged external_ids. */
-export async function resolveCodesForNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids">): Promise<{ added: string[]; all: string[] }> {
+ *  code for. First tries a verified exact label match (cheap, no LLM); if none
+ *  and `llm` is on, a small model picks the best of the REAL candidates the
+ *  authority returned (it can only choose from those — no invented ids). */
+export async function resolveCodesForNode(
+  node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">,
+  opts: { llm?: boolean } = {},
+): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
   const variants = nameVariants(node.name, node.aliases ?? []);
@@ -228,11 +274,21 @@ export async function resolveCodesForNode(node: Pick<Node, "type" | "name" | "al
   const added: string[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    let hit: Candidate | undefined;
+    const cands: Candidate[] = [];
+    const seen = new Set<string>();
+    let exact: Candidate | undefined;
     for (const term of queries) {
-      const cands = await runSearch(t, term);
-      hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(variants, c));
-      if (hit) break;
+      for (const c of await runSearch(t, term)) {
+        if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
+        if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
+        if (!exact && acceptCurie(variants, c)) exact = c;
+      }
+      if (exact) break; // verified match — no need to keep searching or ask the LLM
+    }
+    let hit = exact;
+    if (!hit && opts.llm && cands.length) {
+      const curie = await pickWithLlm({ name: node.name, type: node.type, aliases: node.aliases, description: node.description }, cands.slice(0, 8));
+      if (curie) hit = cands.find((c) => c.curie === curie);
     }
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
   }
@@ -250,24 +306,25 @@ export interface MapSummary {
 /** Batch-map nodes that haven't been checked yet (or all, when force). Persists
  *  accepted codes to external_ids and stamps codes_checked_at so each node is
  *  processed once. Bounded per call to respect API rate limits. */
-export async function mapUnmappedNodes({ limit = 25, force = false }: { limit?: number; force?: boolean } = {}): Promise<MapSummary> {
+export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { limit?: number; force?: boolean; llm?: boolean } = {}): Promise<MapSummary> {
   if (!isDbConfigured()) throw new Error("standards mapping requires a database (DATABASE_URL)");
+  const useLlm = (llm ?? true) && isLlmConfigured(); // AI disambiguation, only if an API key is present
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
   // force = re-map everything: clear the checked flag so the normal pagination
   // (WHERE codes_checked_at IS NULL) walks every eligible node again.
   if (force) await sql.query("UPDATE node SET codes_checked_at = NULL WHERE type = ANY($1)", [TYPES_WITH_TARGETS]);
   const rows = (await sql.query(
-    `SELECT id, type, name, aliases, external_ids FROM node
+    `SELECT id, type, name, aliases, description, external_ids FROM node
       WHERE type = ANY($1) AND codes_checked_at IS NULL
       ORDER BY updated_at DESC LIMIT $2`,
     [TYPES_WITH_TARGETS, Math.max(1, Math.min(200, limit))],
-  )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; external_ids: string[] | null }>;
+  )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; description: string | null; external_ids: string[] | null }>;
 
   let mapped = 0, codesAdded = 0;
   const details: MapSummary["details"] = [];
   for (const r of rows) {
-    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], external_ids: r.external_ids ?? [] });
+    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: r.external_ids ?? [] }, { llm: useLlm });
     if (added.length) {
       await sql.query("UPDATE node SET external_ids=$2, codes_checked_at=now(), updated_at=now() WHERE id=$1", [r.id, all]);
       mapped++; codesAdded += added.length; details.push({ id: r.id, name: r.name, added });
