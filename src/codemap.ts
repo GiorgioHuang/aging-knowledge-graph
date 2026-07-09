@@ -232,7 +232,7 @@ async function jget(url: string): Promise<unknown> {
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) await new Promise((r) => setTimeout(r, 300));
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000); // keep per-lookup bounded so a slow authority can't blow the request budget
+    const timer = setTimeout(() => ctrl.abort(), 12000); // bounded so a slow authority can't blow the request budget, but generous enough to avoid flaky misses
     try {
       const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)", accept: "application/json" } });
       if (res.status === 429 || res.status >= 500) continue;
@@ -304,40 +304,66 @@ async function matchTarget(t: Target, queries: string[], variants: string[], llm
   return { cands };
 }
 
-/** Resolve open CURIEs for one node. Skips vocabularies the node already has a
- *  code for. Matches the node's own name directly; for descriptive names, the
- *  LLM proposes the canonical vocabulary TERM (never an id), the authority
- *  supplies the real code, and a verification call guards precision. */
+/** Resolve open CURIEs for one node. Matches the node's own name directly; for
+ *  descriptive names the LLM proposes the canonical vocabulary TERM (never an
+ *  id) and the authority supplies the real code, guarded by a verification call.
+ *
+ *  NON-DESTRUCTIVE: a vocabulary the node already has a code for is left alone
+ *  unless its prefix is in `reresolve` — and even then the old code is REPLACED
+ *  only when a confident new one is found; a lookup miss keeps the old code (so
+ *  a transient failure or an over-strict reject never deletes good data). */
 export async function resolveCodesForNode(
   node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">,
-  opts: { llm?: boolean } = {},
+  opts: { llm?: boolean; reresolve?: Set<string> } = {},
 ): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
-  const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
+  const reresolve = opts.reresolve ?? new Set<string>();
   const variants = nameVariants(node.name, node.aliases ?? []);
   const baseQueries = searchTerms(node.name, node.aliases ?? []);
-  const added: string[] = [];
-  const unresolved: Target[] = [];
-  // Pass 1: cheap, no LLM — accept a match to the node's own name/alias.
-  for (const t of vocabulariesForType(node.type)) {
-    if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    const { hit } = await matchTarget(t, baseQueries, variants, [], node, { verify: false });
-    if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
-    else unresolved.push(t);
+  const targets = vocabulariesForType(node.type);
+  const existingByPrefix = new Map<string, string>();
+  for (const c of existing) { const p = c.split(":")[0].toUpperCase(); if (!existingByPrefix.has(p)) existingByPrefix.set(p, c); }
+
+  const resolved = new Map<string, string>(); // target prefix -> final code
+  const toResolve: Target[] = [];
+  for (const t of targets) {
+    const p = t.prefix.toUpperCase();
+    const has = existingByPrefix.get(p);
+    if (has && !reresolve.has(p)) { resolved.set(p, has); continue; } // keep as-is
+    toResolve.push(t);
   }
-  // Pass 2: only for still-unresolved vocabularies — LLM proposes the canonical
-  // term, the authority supplies the code, and the match is verified.
-  if (opts.llm && unresolved.length) {
+  // Pass 1: cheap, no LLM — accept a match to the node's own name/alias.
+  const pending: Target[] = [];
+  for (const t of toResolve) {
+    const { hit } = await matchTarget(t, baseQueries, variants, [], node, { verify: false });
+    if (hit) resolved.set(t.prefix.toUpperCase(), hit.curie);
+    else pending.push(t);
+  }
+  // Pass 2: still-unresolved vocabularies — LLM proposes the canonical term,
+  // the authority supplies the code, and the match is verified.
+  if (opts.llm && pending.length) {
     const llmTerms = await suggestVocabTerms(node);
     if (llmTerms.length) {
       const queries = uniqByNorm([...baseQueries, ...llmTerms]).slice(0, 5);
-      for (const t of unresolved) {
+      for (const t of pending) {
         const { hit } = await matchTarget(t, queries, variants, llmTerms, node, { verify: true });
-        if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
+        if (hit) resolved.set(t.prefix.toUpperCase(), hit.curie);
       }
     }
   }
-  return { added, all: mergeCodes(existing, added) };
+  // Keep the old code for any re-resolved vocabulary that found nothing.
+  for (const t of toResolve) {
+    const p = t.prefix.toUpperCase();
+    if (!resolved.has(p) && existingByPrefix.has(p)) resolved.set(p, existingByPrefix.get(p)!);
+  }
+  // Final = non-target existing codes (DOI/seed/etc.) + resolved target codes.
+  const targetSet = new Set(targets.map((t) => t.prefix.toUpperCase()));
+  const nonTarget = existing.filter((c) => !targetSet.has(c.split(":")[0].toUpperCase()));
+  const all: string[] = [];
+  const seen = new Set<string>();
+  for (const c of [...nonTarget, ...resolved.values()]) { if (c && !seen.has(c)) { seen.add(c); all.push(c); } }
+  const existingSet = new Set(existing);
+  return { added: all.filter((c) => !existingSet.has(c)), all };
 }
 
 /** Explain WHY a node did/didn't get a code for each target vocabulary — the
@@ -407,16 +433,20 @@ export async function mapUnmappedNodes({ limit = 25, reset = false, remap = fals
     scanned++;
     const existing = r.external_ids ?? [];
     const prevAuto = r.codes_auto ?? [];
-    // On a re-map, strip codes the resolver could have added (target-vocab codes
-    // that aren't seed/curator ones) and re-resolve fresh — this corrects earlier
-    // loose matches. Seed codes and codes for non-target vocabularies are kept.
     const targetPrefixes = new Set(vocabulariesForType(r.type).map((t) => t.prefix.toUpperCase()));
     const seeded = seedCodes(r.id);
-    const strippable = (c: string) => (targetPrefixes.has(c.split(":")[0].toUpperCase()) && !seeded.has(c)) || prevAuto.includes(c);
-    const kept = remap ? existing.filter((c) => !strippable(c)) : existing;
-    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: kept }, { llm: useLlm });
-    const newAuto = remap ? added : Array.from(new Set([...prevAuto, ...added]));
-    if (remap || added.length) {
+    // On a re-map, RE-RESOLVE the vocabularies whose current code is one the
+    // resolver could have produced (target-vocab, non-seed) — replacing it only
+    // if a confident new code is found (resolveCodesForNode keeps it otherwise,
+    // so we never delete a good code on a lookup miss). Seed/curator and
+    // non-target codes are always kept.
+    const reresolve = new Set<string>();
+    if (remap) for (const c of existing) { const p = c.split(":")[0].toUpperCase(); if (targetPrefixes.has(p) && (!seeded.has(c) || prevAuto.includes(c))) reresolve.add(p); }
+    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: existing }, { llm: useLlm, reresolve });
+    // codes_auto = the target-vocab, non-seed codes currently present (our provenance).
+    const newAuto = all.filter((c) => targetPrefixes.has(c.split(":")[0].toUpperCase()) && !seeded.has(c));
+    const changed = added.length > 0 || all.length !== existing.length;
+    if (remap || changed) {
       await sql.query("UPDATE node SET external_ids=$2, codes_auto=$3, codes_checked_at=now(), updated_at=now() WHERE id=$1", [r.id, all, newAuto]);
       if (added.length) { mapped++; codesAdded += added.length; details.push({ id: r.id, name: r.name, added }); }
     } else {
