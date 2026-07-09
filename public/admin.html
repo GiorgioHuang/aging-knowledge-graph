@@ -186,7 +186,9 @@ async function mapCodes() {
       show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})`, true);
       // force only on the first round: it resets the checked flag once, then the
       // remaining rounds paginate normally to completion.
-      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force: force && round === 1, llm: ai });
+      // reset only on round 1 (clears the checked flag once); remap every round
+      // (strips & re-resolves each node) so the whole graph gets re-mapped.
+      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, reset: force && round === 1, remap: force, llm: ai });
       if (status !== 200) {
         // A round can occasionally time out at the gateway; retry a few times
         // before giving up, since progress is already persisted server-side.

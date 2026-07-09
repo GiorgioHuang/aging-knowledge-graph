@@ -375,16 +375,17 @@ export interface MapSummary {
 /** Batch-map nodes that haven't been checked yet (or all, when force). Persists
  *  accepted codes to external_ids and stamps codes_checked_at so each node is
  *  processed once. Bounded per call to respect API rate limits. */
-export async function mapUnmappedNodes({ limit = 25, force = false, llm, maxMs = 45000 }: { limit?: number; force?: boolean; llm?: boolean; maxMs?: number } = {}): Promise<MapSummary> {
+export async function mapUnmappedNodes({ limit = 25, reset = false, remap = false, llm, maxMs = 45000 }: { limit?: number; reset?: boolean; remap?: boolean; llm?: boolean; maxMs?: number } = {}): Promise<MapSummary> {
   if (!isDbConfigured()) throw new Error("standards mapping requires a database (DATABASE_URL)");
   const start = Date.now();
   const useLlm = (llm ?? true) && isLlmConfigured(); // AI disambiguation, only if an API key is present
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_auto text[] NOT NULL DEFAULT '{}'");
-  // force = re-map everything: clear the checked flag so the normal pagination
-  // (WHERE codes_checked_at IS NULL) walks every eligible node again.
-  if (force) await sql.query("UPDATE node SET codes_checked_at = NULL WHERE type = ANY($1)", [TYPES_WITH_TARGETS]);
+  // reset = clear the checked flag so pagination walks every eligible node again
+  // (done ONCE, on the first round). `remap` (below) then strips & re-resolves
+  // each node it visits — every round, not just the first.
+  if (reset) await sql.query("UPDATE node SET codes_checked_at = NULL WHERE type = ANY($1)", [TYPES_WITH_TARGETS]);
   const rows = (await sql.query(
     `SELECT id, type, name, aliases, description, external_ids, codes_auto FROM node
       WHERE type = ANY($1) AND codes_checked_at IS NULL
@@ -412,10 +413,10 @@ export async function mapUnmappedNodes({ limit = 25, force = false, llm, maxMs =
     const targetPrefixes = new Set(vocabulariesForType(r.type).map((t) => t.prefix.toUpperCase()));
     const seeded = seedCodes(r.id);
     const strippable = (c: string) => (targetPrefixes.has(c.split(":")[0].toUpperCase()) && !seeded.has(c)) || prevAuto.includes(c);
-    const kept = force ? existing.filter((c) => !strippable(c)) : existing;
+    const kept = remap ? existing.filter((c) => !strippable(c)) : existing;
     const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: kept }, { llm: useLlm });
-    const newAuto = force ? added : Array.from(new Set([...prevAuto, ...added]));
-    if (force || added.length) {
+    const newAuto = remap ? added : Array.from(new Set([...prevAuto, ...added]));
+    if (remap || added.length) {
       await sql.query("UPDATE node SET external_ids=$2, codes_auto=$3, codes_checked_at=now(), updated_at=now() WHERE id=$1", [r.id, all, newAuto]);
       if (added.length) { mapped++; codesAdded += added.length; details.push({ id: r.id, name: r.name, added }); }
     } else {
