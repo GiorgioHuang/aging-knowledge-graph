@@ -9,6 +9,7 @@
 // the PubMed citation resolver; the pure logic here is unit-tested offline.
 import { getSql, isDbConfigured } from "./db.ts";
 import { complete, isLlmConfigured, extractJson } from "./llm.ts";
+import { loadGraph } from "./model.ts";
 import type { Node } from "./types.ts";
 
 // A small, fast model is plenty for "what is the canonical term for this concept".
@@ -313,14 +314,28 @@ export async function resolveCodesForNode(
 ): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
-  const llmTerms = opts.llm ? await suggestVocabTerms(node) : [];
   const variants = nameVariants(node.name, node.aliases ?? []);
-  const queries = uniqByNorm([...searchTerms(node.name, node.aliases ?? []), ...llmTerms]).slice(0, 5);
+  const baseQueries = searchTerms(node.name, node.aliases ?? []);
   const added: string[] = [];
+  const unresolved: Target[] = [];
+  // Pass 1: cheap, no LLM — accept a match to the node's own name/alias.
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    const { hit } = await matchTarget(t, queries, variants, llmTerms, node);
+    const { hit } = await matchTarget(t, baseQueries, variants, [], node, { verify: false });
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
+    else unresolved.push(t);
+  }
+  // Pass 2: only for still-unresolved vocabularies — LLM proposes the canonical
+  // term, the authority supplies the code, and the match is verified.
+  if (opts.llm && unresolved.length) {
+    const llmTerms = await suggestVocabTerms(node);
+    if (llmTerms.length) {
+      const queries = uniqByNorm([...baseQueries, ...llmTerms]).slice(0, 5);
+      for (const t of unresolved) {
+        const { hit } = await matchTarget(t, queries, variants, llmTerms, node, { verify: true });
+        if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
+      }
+    }
   }
   return { added, all: mergeCodes(existing, added) };
 }
@@ -376,14 +391,23 @@ export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { lim
     [TYPES_WITH_TARGETS, Math.max(1, Math.min(200, limit))],
   )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; description: string | null; external_ids: string[] | null; codes_auto: string[] | null }>;
 
+  // Seed codes are protected from the re-map strip (codes_auto may be empty for
+  // rows mapped before provenance tracking existed, so fall back to the seed).
+  const seed = loadGraph();
+  const seedCodes = (id: string) => new Set(seed.nodes.get(id)?.external_ids ?? []);
+
   let mapped = 0, codesAdded = 0;
   const details: MapSummary["details"] = [];
   for (const r of rows) {
     const existing = r.external_ids ?? [];
     const prevAuto = r.codes_auto ?? [];
-    // On a re-map, strip our OWN prior codes and re-resolve fresh (this corrects
-    // earlier loose matches); curator/seed codes (not in codes_auto) are kept.
-    const kept = force ? existing.filter((c) => !prevAuto.includes(c)) : existing;
+    // On a re-map, strip codes the resolver could have added (target-vocab codes
+    // that aren't seed/curator ones) and re-resolve fresh — this corrects earlier
+    // loose matches. Seed codes and codes for non-target vocabularies are kept.
+    const targetPrefixes = new Set(vocabulariesForType(r.type).map((t) => t.prefix.toUpperCase()));
+    const seeded = seedCodes(r.id);
+    const strippable = (c: string) => (targetPrefixes.has(c.split(":")[0].toUpperCase()) && !seeded.has(c)) || prevAuto.includes(c);
+    const kept = force ? existing.filter((c) => !strippable(c)) : existing;
     const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: kept }, { llm: useLlm });
     const newAuto = force ? added : Array.from(new Set([...prevAuto, ...added]));
     if (force || added.length) {
