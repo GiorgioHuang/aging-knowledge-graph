@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   vocabulariesForType, normTerm, acceptCurie, mergeCodes, codeUrl,
-  parseOls, parseMeshSummary, parseRxnorm, parseRor, parseOrcid, TYPES_WITH_TARGETS,
+  parseOls, parseMeshSummary, parseRxnorm, parseRor, parseOrcid,
+  deParen, parenParts, nameVariants, searchTerms, TYPES_WITH_TARGETS,
 } from "../src/codemap.ts";
 
 test("vocabulariesForType maps node types to open vocabularies (doc 10 §3)", () => {
@@ -29,6 +30,16 @@ test("acceptCurie requires an exact normalised match to name or an alias", () =>
   assert.ok(acceptCurie(["Sarcopenia"], cand));                       // name matches label
   assert.ok(acceptCurie(["age-related muscle loss", "Muscle Wasting"], cand)); // alias matches synonym
   assert.ok(!acceptCurie(["Frailty"], cand));                         // no match → reject
+});
+
+test("name variants handle descriptive 'Term (gloss)' node names", () => {
+  assert.equal(deParen("Exercise (physical activity)"), "Exercise");
+  assert.deepEqual(parenParts("Fall rate (accidental falls)"), ["accidental falls"]);
+  // the canonical MeSH descriptor "Exercise" now matches the node "Exercise (physical activity)"
+  assert.deepEqual(nameVariants("Exercise (physical activity)", ["PA"]), ["Exercise (physical activity)", "Exercise", "physical activity", "PA"]);
+  assert.ok(acceptCurie(nameVariants("Exercise (physical activity)"), { curie: "MESH:D015444", labels: ["Exercise"] }));
+  // search terms are bounded and put the cleaned name first
+  assert.deepEqual(searchTerms("Fall rate (accidental falls)", ["falls"]), ["Fall rate", "Fall rate (accidental falls)", "falls"]);
 });
 
 test("mergeCodes keeps existing (curator) codes and appends new ones, de-duped", () => {

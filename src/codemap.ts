@@ -51,10 +51,35 @@ export function normTerm(s: string): string {
 }
 
 /** Accept a candidate only if the authority's own label/synonym equals (after
- *  normalisation) the node's name or one of its aliases. High-precision on purpose. */
+ *  normalisation) one of the node's name variants. High-precision on purpose. */
 export function acceptCurie(nodeNames: string[], candidate: Candidate): boolean {
   const names = new Set(nodeNames.map(normTerm).filter(Boolean));
   return candidate.labels.some((l) => names.has(normTerm(l)));
+}
+
+/** Drop parenthetical glosses: "Exercise (physical activity)" → "Exercise". */
+export function deParen(s: string): string {
+  return String(s || "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+}
+/** The contents of each parenthetical: "Fall rate (accidental falls)" → ["accidental falls"]. */
+export function parenParts(s: string): string[] {
+  return [...String(s || "").matchAll(/\(([^)]+)\)/g)].map((m) => m[1].trim()).filter(Boolean);
+}
+function uniqByNorm(terms: string[]): string[] {
+  const seen = new Set<string>(), out: string[] = [];
+  for (const t of terms) { const s = (t || "").trim(), k = normTerm(s); if (s && k && !seen.has(k)) { seen.add(k); out.push(s); } }
+  return out;
+}
+/** All strings a candidate label may match against — the full name, its
+ *  de-parenthesised form, each parenthetical gloss, and every alias. Node names
+ *  here are descriptive ("Term (gloss)"), so exact-only matching misses most. */
+export function nameVariants(name: string, aliases: string[] = []): string[] {
+  return uniqByNorm([name, deParen(name), ...parenParts(name), ...aliases]);
+}
+/** Terms to query the authorities with (bounded) — cleaned name first (best hit
+ *  rate), then the raw name, then the first alias. */
+export function searchTerms(name: string, aliases: string[] = []): string[] {
+  return uniqByNorm([deParen(name) || name, name, ...(aliases ?? []).slice(0, 1)]).slice(0, 3);
 }
 
 /** Keep existing codes (curator-supplied included), append newly resolved ones,
@@ -182,24 +207,33 @@ async function orcidSearch(term: string): Promise<Candidate[]> {
   return parseOrcid(await jget(`https://pub.orcid.org/v3.0/expanded-search/?q=${encodeURIComponent(term)}&rows=10`), term);
 }
 
+async function runSearch(t: Target, term: string): Promise<Candidate[]> {
+  try {
+    return t.source === "ols" ? await olsSearch(term, t.ontology!, t.prefix)
+      : t.source === "mesh" ? await meshSearch(term)
+      : t.source === "rxnorm" ? await rxnormSearch(term)
+      : t.source === "ror" ? await rorSearch(term)
+      : await orcidSearch(term);
+  } catch { return []; }
+}
+
 /** Resolve open CURIEs for one node. Skips vocabularies the node already has a
- *  code for. Returns the accepted additions and the merged external_ids. */
+ *  code for. Queries each authority with the node's name variants and accepts a
+ *  code only on a verified label match. Returns additions + merged external_ids. */
 export async function resolveCodesForNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids">): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
-  const names = [node.name, ...(node.aliases ?? [])].filter(Boolean);
+  const variants = nameVariants(node.name, node.aliases ?? []);
+  const queries = searchTerms(node.name, node.aliases ?? []);
   const added: string[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    let cands: Candidate[] = [];
-    try {
-      cands = t.source === "ols" ? await olsSearch(node.name, t.ontology!, t.prefix)
-        : t.source === "mesh" ? await meshSearch(node.name)
-        : t.source === "rxnorm" ? await rxnormSearch(node.name)
-        : t.source === "ror" ? await rorSearch(node.name)
-        : await orcidSearch(node.name);
-    } catch { cands = []; }
-    const hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(names, c));
+    let hit: Candidate | undefined;
+    for (const term of queries) {
+      const cands = await runSearch(t, term);
+      hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(variants, c));
+      if (hit) break;
+    }
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
   }
   return { added, all: mergeCodes(existing, added) };
@@ -220,9 +254,12 @@ export async function mapUnmappedNodes({ limit = 25, force = false }: { limit?: 
   if (!isDbConfigured()) throw new Error("standards mapping requires a database (DATABASE_URL)");
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
+  // force = re-map everything: clear the checked flag so the normal pagination
+  // (WHERE codes_checked_at IS NULL) walks every eligible node again.
+  if (force) await sql.query("UPDATE node SET codes_checked_at = NULL WHERE type = ANY($1)", [TYPES_WITH_TARGETS]);
   const rows = (await sql.query(
     `SELECT id, type, name, aliases, external_ids FROM node
-      WHERE type = ANY($1) ${force ? "" : "AND codes_checked_at IS NULL"}
+      WHERE type = ANY($1) AND codes_checked_at IS NULL
       ORDER BY updated_at DESC LIMIT $2`,
     [TYPES_WITH_TARGETS, Math.max(1, Math.min(200, limit))],
   )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; external_ids: string[] | null }>;

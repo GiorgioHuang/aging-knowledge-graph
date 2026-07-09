@@ -104,7 +104,7 @@
     <p class="hint">Attach standard vocabulary codes (MONDO · HP · GO · ChEBI · FoodOn · MeSH · RxNorm · ROR · ORCID) to nodes by resolving their names against the authorities — only accepted on a verified name match. Runs in batches; safe to re-run.</p>
     <p>
       <button id="mc_btn" onclick="mapCodes()">Map standard codes</button>
-      <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_force"> re-check already-mapped nodes (one batch)</label>
+      <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_force"> re-map ALL nodes (reset &amp; re-run, even already-checked)</label>
     </p>
     <div id="mc_out" class="out" hidden></div>
   </fieldset>
@@ -174,12 +174,14 @@ async function mapCodes() {
     do {
       round++;
       show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})`, true);
-      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force });
+      // force only on the first round: it resets the checked flag once, then the
+      // remaining rounds paginate normally to completion.
+      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force: force && round === 1 });
       if (status !== 200) { show(out, body, false); return; }
       scanned += body.scanned; mapped += body.mapped; added += body.codesAdded; remaining = body.remaining;
-      if (force || body.scanned === 0) break;
+      if (body.scanned === 0) break;
     } while (remaining > 0);
-    show(out, `Done — scanned ${scanned}, ${mapped} nodes updated, ${added} codes added, ${remaining} unmapped remaining.`, true);
+    show(out, `Done — scanned ${scanned}, ${mapped} nodes updated, ${added} codes added, ${remaining} still unchecked.`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
