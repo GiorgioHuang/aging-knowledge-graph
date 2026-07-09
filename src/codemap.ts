@@ -281,3 +281,21 @@ export async function mapUnmappedNodes({ limit = 25, force = false }: { limit?: 
   )) as Array<{ remaining: number }>;
   return { scanned: rows.length, mapped, codesAdded, remaining, details };
 }
+
+/** Eligible-type nodes that still carry NO standard code (external_ids empty),
+ *  so a curator can see what the resolvers missed and map them by hand. */
+export async function listUnmappedNodes({ limit = 500 }: { limit?: number } = {}): Promise<{ total: number; byType: Record<string, number>; items: Array<{ id: string; type: string; name: string; checked: boolean }> }> {
+  if (!isDbConfigured()) throw new Error("requires a database (DATABASE_URL)");
+  const sql = await getSql();
+  await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
+  const noCode = "type = ANY($1) AND coalesce(array_length(external_ids, 1), 0) = 0";
+  const [{ total }] = (await sql.query(`SELECT count(*)::int AS total FROM node WHERE ${noCode}`, [TYPES_WITH_TARGETS])) as Array<{ total: number }>;
+  const byRows = (await sql.query(`SELECT type, count(*)::int AS n FROM node WHERE ${noCode} GROUP BY type ORDER BY n DESC`, [TYPES_WITH_TARGETS])) as Array<{ type: string; n: number }>;
+  const items = (await sql.query(
+    `SELECT id, type, name, (codes_checked_at IS NOT NULL) AS checked FROM node WHERE ${noCode} ORDER BY type, name LIMIT $2`,
+    [TYPES_WITH_TARGETS, Math.max(1, Math.min(2000, limit))],
+  )) as Array<{ id: string; type: string; name: string; checked: boolean }>;
+  const byType: Record<string, number> = {};
+  for (const r of byRows) byType[r.type] = r.n;
+  return { total, byType, items };
+}

@@ -25,6 +25,11 @@
   .out { white-space: pre-wrap; font: 12px/1.4 ui-monospace, monospace; background: #0f1b19; border: 1px solid var(--line); border-radius: 7px; padding: 10px; margin-top: 10px; max-height: 220px; overflow: auto; }
   .ok { color: var(--accent); } .err { color: var(--err); }
   .hint { font-size: 12px; color: var(--muted); }
+  .mulist { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 7px; padding: 4px 0; }
+  .mu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 13px; }
+  .mu-item:nth-child(even) { background: #0f1b19; }
+  .mu-item code { color: var(--muted); font-size: 11px; }
+  .pill { flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; background: #0e2f2a; color: #7fd3c3; border-radius: 20px; padding: 1px 8px; }
   .item { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .item .grow { flex:1; } .item code { color:var(--muted); }
   .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
@@ -104,9 +109,11 @@
     <p class="hint">Attach standard vocabulary codes (MONDO · HP · GO · ChEBI · FoodOn · MeSH · RxNorm · ROR · ORCID) to nodes by resolving their names against the authorities — only accepted on a verified name match. Runs in batches; safe to re-run.</p>
     <p>
       <button id="mc_btn" onclick="mapCodes()">Map standard codes</button>
+      <button class="secondary" id="mu_btn" onclick="showUnmapped()">Show unmapped nodes</button>
       <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_force"> re-map ALL nodes (reset &amp; re-run, even already-checked)</label>
     </p>
     <div id="mc_out" class="out" hidden></div>
+    <div id="mu_out" hidden></div>
   </fieldset>
 
   <fieldset>
@@ -186,6 +193,26 @@ async function mapCodes() {
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
 }
+
+// List eligible-type nodes that still have no standard code, so you can see what
+// the resolvers missed and map them by hand.
+async function showUnmapped() {
+  const box = $("mu_out"), btn = $("mu_btn");
+  btn.disabled = true; box.hidden = false; box.innerHTML = '<p class="hint">loading…</p>';
+  try {
+    const { status, body } = await req("GET", "/admin/unmapped-nodes?limit=1000");
+    if (status !== 200) { box.innerHTML = `<div class="out err">${escapeHtml(JSON.stringify(body))}</div>`; return; }
+    const by = Object.entries(body.byType || {}).map(([t, n]) => `${t}: ${n}`).join(" · ") || "—";
+    const rows = (body.items || []).map(n =>
+      `<div class="mu-item"><span class="pill">${escapeHtml(n.type)}</span>
+       <a href="/#${encodeURIComponent(n.id)}" target="_blank" rel="noopener">${escapeHtml(n.name)}</a>
+       <code>${escapeHtml(n.id)}</code>${n.checked ? "" : ' <span class="hint">(not yet checked)</span>'}</div>`).join("");
+    box.innerHTML = `<p class="hint"><b>${body.total}</b> node(s) with no code${body.items.length < body.total ? ` (showing ${body.items.length})` : ""} · ${by}</p>
+      <div class="mulist">${rows || '<p class="hint">None — every eligible node has a code.</p>'}</div>`;
+  } catch (e) { box.innerHTML = `<div class="out err">${escapeHtml(String((e && e.message) || e))}</div>`; }
+  finally { btn.disabled = false; }
+}
+function escapeHtml(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function renderLists() {
   const f = ($("filter").value || "").toLowerCase();
   const nm = id => (GRAPH.nodes.find(n => n.id === id) || {}).name || id;

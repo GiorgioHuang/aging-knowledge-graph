@@ -28,7 +28,7 @@ import { isLlmConfigured } from "./llm.ts";
 import { graphClaimQuality } from "./quality.ts";
 import { saveAskLog, listAskLogs } from "./asklog.ts";
 import { processGapQuestions } from "./gaptopics.ts";
-import { mapUnmappedNodes } from "./codemap.ts";
+import { mapUnmappedNodes, listUnmappedNodes } from "./codemap.ts";
 import { AGENTS, type AgentName } from "./models.ts";
 import * as Q from "./queries.ts";
 import type { Graph } from "./types.ts";
@@ -295,6 +295,19 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           return send(res, 200, await processGapQuestions({}));
         } catch (e) {
           return send(res, 502, { error: `gap triage failed: ${(e as Error).message}` });
+        }
+      }
+
+      // ---- standards mapping: list eligible nodes that still have no code ----
+      if (path === "/admin/unmapped-nodes" && req.method === "GET") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        try {
+          return send(res, 200, await listUnmappedNodes({ limit: Number(q.get("limit")) || 500 }));
+        } catch (e) {
+          return send(res, 502, { error: `listing failed: ${(e as Error).message}` });
         }
       }
 
