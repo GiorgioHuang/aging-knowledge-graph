@@ -8,46 +8,39 @@
 // docs/10-standards-alignment.md. Network calls run in production, exactly like
 // the PubMed citation resolver; the pure logic here is unit-tested offline.
 import { getSql, isDbConfigured } from "./db.ts";
-import { NCBI_KEY } from "./sources.ts";
 import { complete, isLlmConfigured, extractJson } from "./llm.ts";
 import type { Node } from "./types.ts";
 
-// A small, fast model is plenty for "pick the matching term from this list".
-const DISAMBIG_MODEL = process.env.CODEMAP_MODEL || "claude-haiku-4-5";
-const DISAMBIG_SYSTEM = `You map a healthy-aging knowledge-graph node to a controlled-vocabulary term.
-Given a node and a NUMBERED list of REAL candidate terms from an authority, choose the ONE candidate that denotes the SAME concept as the node (a synonym, or the node's exact concept — not merely related or broader/narrower).
-If none is clearly the same concept, choose -1. Never invent a term. Prefer precision: when unsure, return -1.
-Respond with JSON only: {"choice": <index or -1>}.`;
+// A small, fast model is plenty for "what is the canonical term for this concept".
+const CODEMAP_MODEL = process.env.CODEMAP_MODEL || "claude-haiku-4-5";
+const TERM_SYSTEM = `You translate a healthy-aging knowledge-graph node into CONTROLLED-VOCABULARY TERMS.
+Given a node (name, type, optional description), output up to 3 canonical term STRINGS exactly as they appear in standard biomedical vocabularies (MeSH, MONDO, HPO, ChEBI, FoodOn, GO) that denote the SAME concept — the precise standard name a curator would look up.
+Examples: "Fall incidence" → "Accidental Falls"; "Alzheimer's disease and related dementia" → "Alzheimer Disease"; "Muscle strength (grip)" → "Hand Strength"; "Delirium incidence" → "Delirium".
+Rules: output TERM STRINGS ONLY — never codes or IDs. Give the single most precise standard term first. If the concept has NO standard vocabulary term, output an empty list. Respond JSON only: {"terms": ["..."]}.`;
 
-type DisambigNode = { name: string; type: string; aliases?: string[]; description?: string };
-export function buildDisambigPrompt(node: DisambigNode, candidates: Candidate[]): string {
-  const list = candidates.map((c, i) =>
-    `${i}. ${c.curie} — ${c.labels.slice(0, 4).join(" / ")}${c.def ? " — " + String(c.def).slice(0, 240) : ""}`).join("\n");
+type TermNode = { name: string; type: string; aliases?: string[]; description?: string };
+export function buildTermPrompt(node: TermNode): string {
   return `Node:
 - name: ${node.name}
-- type: ${node.type}${node.aliases?.length ? `\n- aliases: ${node.aliases.join(", ")}` : ""}${node.description ? `\n- description: ${node.description}` : ""}
+- type: ${node.type}${node.aliases?.length ? `\n- aliases: ${node.aliases.join(", ")}` : ""}${node.description ? `\n- description: ${String(node.description).slice(0, 300)}` : ""}
 
-Candidates:
-${list}
-
-Which candidate denotes the SAME concept as the node? Reply JSON only: {"choice": <index or -1>}.`;
+Canonical controlled-vocabulary term(s) for the SAME concept? Reply JSON only: {"terms": ["..."]}.`;
 }
 
-/** Parse the model's {"choice": n} into a candidate CURIE (null if -1 / invalid). */
-export function parseDisambigChoice(text: string, candidates: Candidate[]): string | null {
-  let obj: { choice?: unknown };
-  try { obj = extractJson(text); } catch { return null; }
-  const n = typeof obj.choice === "number" ? obj.choice : Number(obj.choice);
-  if (!Number.isInteger(n) || n < 0 || n >= candidates.length) return null;
-  return candidates[n].curie;
+/** Parse {"terms": [...]} into up to 3 non-empty term strings. */
+export function parseTermSuggestions(text: string): string[] {
+  let obj: { terms?: unknown };
+  try { obj = extractJson(text); } catch { return []; }
+  const arr = Array.isArray(obj.terms) ? obj.terms : [];
+  return arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3);
 }
 
-async function pickWithLlm(node: DisambigNode, candidates: Candidate[]): Promise<string | null> {
+async function suggestVocabTerms(node: TermNode): Promise<string[]> {
   try {
-    const text = await complete([{ role: "user", content: buildDisambigPrompt(node, candidates) }],
-      { system: DISAMBIG_SYSTEM, maxTokens: 120, thinking: false, model: DISAMBIG_MODEL });
-    return parseDisambigChoice(text, candidates);
-  } catch { return null; }
+    const text = await complete([{ role: "user", content: buildTermPrompt(node) }],
+      { system: TERM_SYSTEM, maxTokens: 150, thinking: false, model: CODEMAP_MODEL });
+    return parseTermSuggestions(text);
+  } catch { return []; }
 }
 
 export interface Target { prefix: string; source: "ols" | "mesh" | "rxnorm" | "ror" | "orcid"; ontology?: string }
@@ -166,15 +159,16 @@ export function parseOls(json: unknown, prefix: string): Candidate[] {
   return out;
 }
 
-/** NLM MeSH esummary response → candidates (MESH:Dxxxxxx + its descriptor terms). */
-export function parseMeshSummary(json: unknown): Candidate[] {
-  const result = (json as { result?: Record<string, unknown> })?.result;
-  if (!result) return [];
-  const uids = (result.uids as string[]) ?? [];
+/** NLM MeSH RDF term-lookup response → candidates. Each entry is
+ *  { resource: "http://id.nlm.nih.gov/mesh/D000058", label: "Accidental Falls" }.
+ *  This looks a term up in the MeSH vocabulary directly (unlike PubMed esearch,
+ *  which indexes article text and misses descriptive phrases). */
+export function parseMeshLookup(json: unknown): Candidate[] {
+  const arr = Array.isArray(json) ? (json as Array<{ resource?: string; label?: string }>) : [];
   const out: Candidate[] = [];
-  for (const uid of uids) {
-    const r = result[uid] as { ds_meshui?: string; ds_meshterms?: string[]; ds_scopenote?: string } | undefined;
-    if (r?.ds_meshui) out.push({ curie: `MESH:${r.ds_meshui}`, labels: Array.isArray(r.ds_meshterms) ? r.ds_meshterms : [], def: r.ds_scopenote });
+  for (const r of arr) {
+    const ui = String(r.resource ?? "").split("/").pop();
+    if (ui && r.label) out.push({ curie: `MESH:${ui}`, labels: [r.label] });
   }
   return out;
 }
@@ -231,10 +225,11 @@ async function olsSearch(term: string, ontology: string, prefix: string): Promis
 }
 
 async function meshSearch(term: string): Promise<Candidate[]> {
-  const s = await jget(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=mesh&retmode=json&retmax=5&term=${encodeURIComponent(term)}${NCBI_KEY}`);
-  const ids = (s as { esearchresult?: { idlist?: string[] } })?.esearchresult?.idlist ?? [];
-  if (!ids.length) return [];
-  return parseMeshSummary(await jget(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=mesh&retmode=json&id=${ids.join(",")}${NCBI_KEY}`));
+  // Look the term up in the MeSH vocabulary directly (substring match; the exact
+  // one is selected by acceptCurie). Descriptors first, then broader entry terms.
+  const url = (kind: string) => `https://id.nlm.nih.gov/mesh/lookup/${kind}?label=${encodeURIComponent(term)}&match=contains&limit=10`;
+  const d = parseMeshLookup(await jget(url("descriptor")));
+  return d.length ? d : parseMeshLookup(await jget(url("term")));
 }
 
 async function rxnormSearch(term: string): Promise<Candidate[]> {
@@ -269,26 +264,19 @@ export async function resolveCodesForNode(
 ): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
-  const variants = nameVariants(node.name, node.aliases ?? []);
-  const queries = searchTerms(node.name, node.aliases ?? []);
+  // The LLM proposes canonical vocabulary TERM STRINGS (never ids); the authority
+  // still supplies the real code and must actually contain the term.
+  const llmTerms = opts.llm ? await suggestVocabTerms(node) : [];
+  const matchTerms = [...nameVariants(node.name, node.aliases ?? []), ...llmTerms];
+  const queries = uniqByNorm([...searchTerms(node.name, node.aliases ?? []), ...llmTerms]).slice(0, 5);
   const added: string[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    const cands: Candidate[] = [];
-    const seen = new Set<string>();
-    let exact: Candidate | undefined;
+    let hit: Candidate | undefined;
     for (const term of queries) {
-      for (const c of await runSearch(t, term)) {
-        if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
-        if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
-        if (!exact && acceptCurie(variants, c)) exact = c;
-      }
-      if (exact) break; // verified match — no need to keep searching or ask the LLM
-    }
-    let hit = exact;
-    if (!hit && opts.llm && cands.length) {
-      const curie = await pickWithLlm({ name: node.name, type: node.type, aliases: node.aliases, description: node.description }, cands.slice(0, 8));
-      if (curie) hit = cands.find((c) => c.curie === curie);
+      const cands = await runSearch(t, term);
+      hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(matchTerms, c));
+      if (hit) break;
     }
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
   }
@@ -299,33 +287,30 @@ export async function resolveCodesForNode(
  *  terms searched, the real candidates the authority returned, and the decision.
  *  Read-only (no writes), so it's safe to run for a single node on demand. */
 export interface TargetTrace { prefix: string; source: string; queries: string[]; candidates: Array<{ curie: string; label: string }>; decision: string }
-export async function diagnoseNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">, opts: { llm?: boolean } = {}): Promise<{ type: string; name: string; targets: TargetTrace[] }> {
+export async function diagnoseNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">, opts: { llm?: boolean } = {}): Promise<{ type: string; name: string; aiTerms: string[]; targets: TargetTrace[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
-  const variants = nameVariants(node.name, node.aliases ?? []);
-  const queries = searchTerms(node.name, node.aliases ?? []);
+  const llmTerms = opts.llm ? await suggestVocabTerms(node) : [];
+  const matchTerms = [...nameVariants(node.name, node.aliases ?? []), ...llmTerms];
+  const queries = uniqByNorm([...searchTerms(node.name, node.aliases ?? []), ...llmTerms]).slice(0, 5);
   const targets: TargetTrace[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) { targets.push({ prefix: t.prefix, source: t.source, queries: [], candidates: [], decision: "already has a code" }); continue; }
     const cands: Candidate[] = [];
     const seen = new Set<string>();
-    let exact: Candidate | undefined;
+    let hit: Candidate | undefined;
     for (const term of queries) {
       for (const c of await runSearch(t, term)) {
         if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
         if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
-        if (!exact && acceptCurie(variants, c)) exact = c;
+        if (!hit && acceptCurie(matchTerms, c)) hit = c;
       }
-      if (exact) break;
+      if (hit) break;
     }
-    let decision: string;
-    if (exact) decision = `exact match → ${exact.curie}`;
-    else if (!cands.length) decision = "no candidates returned by the authority";
-    else if (!opts.llm) decision = `no exact match (${cands.length} candidates; AI off)`;
-    else { const curie = await pickWithLlm({ name: node.name, type: node.type, aliases: node.aliases, description: node.description }, cands.slice(0, 8)); decision = curie ? `AI chose → ${curie}` : `AI found no same-concept match (${cands.length} candidates)`; }
+    const decision = hit ? `matched → ${hit.curie}` : cands.length ? `no matching term (${cands.length} candidates)` : "no candidates returned by the authority";
     targets.push({ prefix: t.prefix, source: t.source, queries, candidates: cands.slice(0, 8).map((c) => ({ curie: c.curie, label: c.labels[0] ?? "" })), decision });
   }
-  return { type: node.type, name: node.name, targets };
+  return { type: node.type, name: node.name, aiTerms: llmTerms, targets };
 }
 
 export interface MapSummary {

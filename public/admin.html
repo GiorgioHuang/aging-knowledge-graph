@@ -227,7 +227,8 @@ async function whyUnmapped(btn, encId) {
   try {
     const { status, body } = await req("GET", "/admin/node-codes-preview?id=" + encId);
     if (status !== 200) { box.innerHTML = `<span class="err">${escapeHtml(JSON.stringify(body))}</span>`; return; }
-    box.innerHTML = (body.targets || []).map(t => {
+    const ai = (body.aiTerms && body.aiTerms.length) ? `<div class="hint">AI canonical term(s): ${body.aiTerms.map(escapeHtml).join(" · ")}</div>` : "";
+    box.innerHTML = ai + (body.targets || []).map(t => {
       const cands = (t.candidates || []).map(c => `<li><code>${escapeHtml(c.curie)}</code> ${escapeHtml(c.label)}</li>`).join("");
       return `<div class="whyrow"><b>${escapeHtml(t.prefix)}</b> <span class="hint">(${escapeHtml(t.source)})</span> — ${escapeHtml(t.decision)}`
         + (t.queries && t.queries.length ? `<div class="hint">searched: ${t.queries.map(escapeHtml).join(" | ")}</div>` : "")

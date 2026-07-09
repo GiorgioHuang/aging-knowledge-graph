@@ -113,16 +113,17 @@ user is licensed for, or omitted from the redistributable release.
 ## 5. Lookup & crosswalk services
 
 **Implemented** (`src/codemap.ts`): an automated resolver attaches open CURIEs by
-node type (§3) — MONDO/HP/GO/ChEBI/FoodOn via **EBI OLS4**, **MeSH** via NLM
-E-utilities, **RxNorm** (drugs) via NLM RxNav, **ROR** (organisations) via the ROR
-API, and **ORCID** (experts) via the ORCID public API. It never trusts an LLM for
-an identifier: a code is accepted only when the authority's own label/synonym
-matches the node's name or an alias (ORCID additionally requires a *unique* exact
-name match, since person names collide). When no exact label matches, an optional
-**AI disambiguation** step (a small model, on by default) picks the best of the
-authority's *real* returned candidates — it can only choose from that list, so it
-still can't invent an identifier — which lifts recall on descriptive node names.
-Run it from the **Maintenance** panel in
+node type (§3) — MONDO/HP/GO/ChEBI/FoodOn via **EBI OLS4**, **MeSH** via the NLM
+MeSH RDF term-lookup, **RxNorm** (drugs) via NLM RxNav, **ROR** (organisations) via
+the ROR API, and **ORCID** (experts) via the ORCID public API. It never trusts an
+LLM for an identifier: a code is accepted only when the authority's own label
+matches the node's name/alias — or a canonical term the AI proposed (below).
+Because node names are descriptive ("Fall incidence"), an optional **AI step** (a
+small model, on by default) translates the node into the canonical vocabulary
+*term string* ("Accidental Falls"); that term is then looked up in the authority,
+which supplies the real code — so no identifier is ever invented. The `/admin`
+"why?" button shows, per node, the AI's suggested terms, the candidates each
+authority returned, and the decision. Run it from the **Maintenance** panel in
 `/admin` (a button that loops batches to completion) or via `POST /admin/map-codes`
 (token-gated; `{limit, force}`). Resolved codes are merged into `external_ids` and
 shown as authority links in the node view. Only open-licence codes are attached —
