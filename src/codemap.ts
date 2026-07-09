@@ -246,7 +246,7 @@ async function jget(url: string): Promise<unknown> {
 async function olsSearch(term: string, ontology: string, prefix: string): Promise<Candidate[]> {
   // Ranked (not exact): an exact label still ranks first (cheap-accepted by
   // acceptCurie), and the rest become candidates for LLM disambiguation.
-  const url = `https://www.ebi.ac.uk/ols4/api/search?q=${encodeURIComponent(term)}&ontology=${ontology}&rows=6&fieldList=obo_id,label,synonym,description,ontology_name`;
+  const url = `https://www.ebi.ac.uk/ols4/api/search?q=${encodeURIComponent(term)}&ontology=${ontology}&rows=15&fieldList=obo_id,label,synonym,description,ontology_name`;
   return parseOls(await jget(url), prefix);
 }
 
