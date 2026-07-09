@@ -112,7 +112,16 @@ user is licensed for, or omitted from the redistributable release.
 
 ## 5. Lookup & crosswalk services
 
-How a curator or the AI extractor finds the right CURIE:
+**Implemented** (`src/codemap.ts`): an automated resolver attaches open CURIEs by
+node type (§3) — MONDO/HP/GO/ChEBI/FoodOn via **EBI OLS4**, and **MeSH** via NLM
+E-utilities. It never trusts an LLM for an identifier: a code is accepted only
+when the authority's own label/synonym matches the node's name or an alias (same
+anti-hallucination rule as citation resolution). Run it over unmapped nodes with
+`POST /admin/map-codes` (token-gated; `{limit, force}`); resolved codes are merged
+into `external_ids` and shown as authority links in the node view. Only
+open-licence codes are attached — SNOMED/ICD/ATC are never written to the data.
+
+How a curator finds a CURIE manually:
 
 - **[Bioregistry](https://bioregistry.io)** — canonical prefixes & metadata.
 - **EBI [OLS](https://www.ebi.ac.uk/ols4)** (Ontology Lookup Service) — search

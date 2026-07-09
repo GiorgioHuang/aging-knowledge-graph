@@ -447,7 +447,7 @@ async function loadDetail(id) {
   const line = (c, dir) => `<li>${dir==='out' ? c.relationship + dirTxt(c) + " → <b>" + c.other.name + "</b>" : "<b>" + c.other.name + "</b> " + c.relationship + dirTxt(c) + " →"}
      <code>${c.population ? c.population + " · " : ""}${c.dose ? c.dose + " · " : ""}${c.comparator ? "vs " + c.comparator + " · " : ""}${c.certainty || ""} ${c.status}</code>${qualityBadge(c.quality)}${cite(c.evidence)}</li>`;
   $("detailtitle").innerHTML = `<h3>${d.node.name} <code>${d.node.id} · ${d.node.type}</code></h3>`;
-  $("detail").innerHTML = `<div class="hint">domains: ${d.node.domains.join(", ") || "—"} · codes: ${(d.node.external_ids||[]).join(", ") || "—"}</div>
+  $("detail").innerHTML = `<div class="hint">domains: ${d.node.domains.join(", ") || "—"} · codes: ${(d.node.external_ids||[]).map(codeLink).join(", ") || "—"}</div>
     ${d.node.description ? "<p>" + d.node.description + "</p>" : ""}
     <strong>Outgoing (${d.outgoing.length})</strong><ul>${d.outgoing.map(c => line(c,'out')).join("") || "<li class='hint'>none</li>"}</ul>
     <strong>Incoming (${d.incoming.length})</strong><ul>${d.incoming.map(c => line(c,'in')).join("") || "<li class='hint'>none</li>"}</ul>
@@ -455,6 +455,25 @@ async function loadDetail(id) {
 }
 
 const escs = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+// Render a CURIE (external_id) as a link to its authority — mirrors codeUrl() in src/codemap.ts.
+function codeUrl(curie) {
+  const i = String(curie).indexOf(":"); if (i < 0) return null;
+  const p = curie.slice(0, i).toUpperCase(), id = curie.slice(i + 1); if (!id) return null;
+  if (p === "MESH") return "https://meshb.nlm.nih.gov/record/ui?ui=" + encodeURIComponent(id);
+  if (["MONDO","HP","GO","CHEBI","FOODON","MAXO","BCIO"].includes(p)) return "http://purl.obolibrary.org/obo/" + p + "_" + id;
+  if (p === "DOI") return "https://doi.org/" + id;
+  if (p === "PMID") return "https://pubmed.ncbi.nlm.nih.gov/" + id + "/";
+  if (p === "PMCID") return "https://www.ncbi.nlm.nih.gov/pmc/articles/" + id + "/";
+  if (p === "ROR") return "https://ror.org/" + id;
+  if (p === "ORCID") return "https://orcid.org/" + id;
+  if (p === "RXNORM") return "https://mor.nlm.nih.gov/RxNav/search?searchBy=RXCUI&searchTerm=" + encodeURIComponent(id);
+  if (p === "LOINC") return "https://loinc.org/" + encodeURIComponent(id);
+  return null;
+}
+function codeLink(curie) {
+  const u = codeUrl(curie);
+  return u ? '<a href="' + u + '" target="_blank" rel="noopener">' + escs(curie) + "</a>" : escs(curie);
+}
 function qualityBadge(q) {
   if (!q) return "";
   const title = "Evidence strength (GRADE-informed) — " + (q.reasons || []).join(" · ");
