@@ -11,13 +11,17 @@ import { getSql, isDbConfigured } from "./db.ts";
 import { NCBI_KEY } from "./sources.ts";
 import type { Node } from "./types.ts";
 
-export interface Target { prefix: string; source: "ols" | "mesh"; ontology?: string }
+export interface Target { prefix: string; source: "ols" | "mesh" | "rxnorm" | "ror" | "orcid"; ontology?: string }
 export interface Candidate { curie: string; labels: string[] }
 
 // Per docs/10-standards-alignment.md §3 — open primaries that are resolvable via
-// a key-free API (EBI OLS4 for OBO ontologies; NLM E-utilities for MeSH).
+// a key-free API (EBI OLS4 for OBO ontologies; NLM E-utilities for MeSH; NLM
+// RxNav for RxNorm; ROR API for organisations; ORCID public API for experts).
 const OLS = (prefix: string, ontology: string): Target => ({ prefix, source: "ols", ontology });
 const MESH: Target = { prefix: "MESH", source: "mesh" };
+const RXNORM: Target = { prefix: "RXNORM", source: "rxnorm" };
+const ROR: Target = { prefix: "ROR", source: "ror" };
+const ORCID: Target = { prefix: "ORCID", source: "orcid" };
 export const TARGETS_BY_TYPE: Record<string, Target[]> = {
   disease: [OLS("MONDO", "mondo"), MESH],
   symptom: [OLS("HP", "hp"), MESH],
@@ -25,13 +29,15 @@ export const TARGETS_BY_TYPE: Record<string, Target[]> = {
   intervention: [MESH],
   exercise: [MESH],
   nutrition: [OLS("CHEBI", "chebi"), OLS("FOODON", "foodon"), MESH],
-  drug: [OLS("CHEBI", "chebi"), MESH],
+  drug: [RXNORM, OLS("CHEBI", "chebi"), MESH],
   mechanism: [OLS("GO", "go"), MESH],
   scale: [MESH],
   tool: [MESH],
   technology: [MESH],
-  // population / research / paper / guideline / expert / organization: internal
-  // ids or non-term identifiers (ROR/ORCID/DOI) — not auto-resolved here.
+  organization: [ROR],
+  expert: [ORCID],
+  // population / research / paper / guideline: internal ids or already-carried
+  // identifiers (DOI/PMID) — not auto-resolved here.
 };
 export const TYPES_WITH_TARGETS = Object.keys(TARGETS_BY_TYPE);
 
@@ -108,6 +114,34 @@ export function parseMeshSummary(json: unknown): Candidate[] {
   return out;
 }
 
+/** RxNav exact-name response → RXNORM candidates. The exact `name=` endpoint
+ *  returns a CUI only for an exact name match, so the match is already verified;
+ *  we carry the queried term as the label so acceptCurie confirms it. */
+export function parseRxnorm(json: unknown, term: string): Candidate[] {
+  const ids = (json as { idGroup?: { rxnormId?: string[] } })?.idGroup?.rxnormId ?? [];
+  return ids.map((id) => ({ curie: `RXNORM:${id}`, labels: [term] }));
+}
+
+/** ROR API response → ROR candidates (id URL → local id; name + aliases/acronyms as labels). */
+export function parseRor(json: unknown): Candidate[] {
+  const items = (json as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  return items.slice(0, 5).map((it) => ({
+    curie: `ROR:${String(it.id ?? "").replace(/^https?:\/\/ror\.org\//, "")}`,
+    labels: [it.name as string, ...((it.aliases as string[]) ?? []), ...((it.acronyms as string[]) ?? [])].filter(Boolean),
+  })).filter((c) => c.curie !== "ROR:");
+}
+
+/** ORCID expanded-search → a candidate ONLY when exactly one record's full name
+ *  matches the query (person-name collisions make anything looser unsafe). */
+export function parseOrcid(json: unknown, term: string): Candidate[] {
+  const rows = (json as { "expanded-result"?: Array<Record<string, unknown>> | null })?.["expanded-result"] ?? [];
+  const want = normTerm(term);
+  const fullName = (r: Record<string, unknown>) => `${(r["given-names"] as string) ?? ""} ${(r["family-names"] as string) ?? ""}`.trim();
+  const exact = (rows ?? []).filter((r) => normTerm(fullName(r)) === want && r["orcid-id"]);
+  if (exact.length !== 1) return [];
+  return [{ curie: `ORCID:${exact[0]["orcid-id"]}`, labels: [fullName(exact[0])] }];
+}
+
 // ---- network (runs in production; not exercised by the offline test suite) ----
 async function jget(url: string): Promise<unknown> {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -115,7 +149,7 @@ async function jget(url: string): Promise<unknown> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" } });
+      const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)", accept: "application/json" } });
       if (res.status === 429 || res.status >= 500) continue;
       if (!res.ok) return null;
       return await res.json();
@@ -136,6 +170,18 @@ async function meshSearch(term: string): Promise<Candidate[]> {
   return parseMeshSummary(await jget(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=mesh&retmode=json&id=${ids.join(",")}${NCBI_KEY}`));
 }
 
+async function rxnormSearch(term: string): Promise<Candidate[]> {
+  return parseRxnorm(await jget(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(term)}`), term);
+}
+
+async function rorSearch(term: string): Promise<Candidate[]> {
+  return parseRor(await jget(`https://api.ror.org/organizations?query=${encodeURIComponent(term)}`));
+}
+
+async function orcidSearch(term: string): Promise<Candidate[]> {
+  return parseOrcid(await jget(`https://pub.orcid.org/v3.0/expanded-search/?q=${encodeURIComponent(term)}&rows=10`), term);
+}
+
 /** Resolve open CURIEs for one node. Skips vocabularies the node already has a
  *  code for. Returns the accepted additions and the merged external_ids. */
 export async function resolveCodesForNode(node: Pick<Node, "type" | "name" | "aliases" | "external_ids">): Promise<{ added: string[]; all: string[] }> {
@@ -146,8 +192,13 @@ export async function resolveCodesForNode(node: Pick<Node, "type" | "name" | "al
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
     let cands: Candidate[] = [];
-    try { cands = t.source === "ols" ? await olsSearch(node.name, t.ontology!, t.prefix) : await meshSearch(node.name); }
-    catch { cands = []; }
+    try {
+      cands = t.source === "ols" ? await olsSearch(node.name, t.ontology!, t.prefix)
+        : t.source === "mesh" ? await meshSearch(node.name)
+        : t.source === "rxnorm" ? await rxnormSearch(node.name)
+        : t.source === "ror" ? await rorSearch(node.name)
+        : await orcidSearch(node.name);
+    } catch { cands = []; }
     const hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(names, c));
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
   }

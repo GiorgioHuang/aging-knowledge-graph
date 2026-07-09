@@ -100,6 +100,16 @@
   </fieldset>
 
   <fieldset>
+    <legend>Maintenance</legend>
+    <p class="hint">Attach standard vocabulary codes (MONDO · HP · GO · ChEBI · FoodOn · MeSH · RxNorm · ROR · ORCID) to nodes by resolving their names against the authorities — only accepted on a verified name match. Runs in batches; safe to re-run.</p>
+    <p>
+      <button id="mc_btn" onclick="mapCodes()">Map standard codes</button>
+      <label class="hint" style="margin-left:10px"><input type="checkbox" id="mc_force"> re-check already-mapped nodes (one batch)</label>
+    </p>
+    <div id="mc_out" class="out" hidden></div>
+  </fieldset>
+
+  <fieldset>
     <legend>Browse / delete</legend>
     <p><button class="secondary" onclick="reload()">Refresh</button>
        <input id="filter" placeholder="filter nodes…" oninput="renderLists()" style="width:200px;display:inline-block" /></p>
@@ -151,6 +161,29 @@ async function reload() {
   renderLists();
 }
 function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "noopener"); }
+
+// Standards mapping: loops /admin/map-codes in batches until nothing is left
+// (or runs a single re-check batch when "force" is ticked, which ignores the
+// already-checked flag so it can't paginate to completion).
+async function mapCodes() {
+  const out = $("mc_out"), btn = $("mc_btn"), force = $("mc_force").checked;
+  const PER = 20;
+  btn.disabled = true;
+  let scanned = 0, mapped = 0, added = 0, remaining = null, round = 0;
+  try {
+    do {
+      round++;
+      show(out, `working… round ${round} (scanned ${scanned}, ${mapped} nodes updated, ${added} codes added${remaining != null ? `, ${remaining} left` : ""})`, true);
+      const { status, body } = await req("POST", "/admin/map-codes", { limit: PER, force });
+      if (status !== 200) { show(out, body, false); return; }
+      scanned += body.scanned; mapped += body.mapped; added += body.codesAdded; remaining = body.remaining;
+      if (force || body.scanned === 0) break;
+    } while (remaining > 0);
+    show(out, `Done — scanned ${scanned}, ${mapped} nodes updated, ${added} codes added, ${remaining} unmapped remaining.`, true);
+    await reload();
+  } catch (e) { show(out, String((e && e.message) || e), false); }
+  finally { btn.disabled = false; }
+}
 function renderLists() {
   const f = ($("filter").value || "").toLowerCase();
   const nm = id => (GRAPH.nodes.find(n => n.id === id) || {}).name || id;

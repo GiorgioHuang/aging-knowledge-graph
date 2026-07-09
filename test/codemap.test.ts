@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   vocabulariesForType, normTerm, acceptCurie, mergeCodes, codeUrl,
-  parseOls, parseMeshSummary, TYPES_WITH_TARGETS,
+  parseOls, parseMeshSummary, parseRxnorm, parseRor, parseOrcid, TYPES_WITH_TARGETS,
 } from "../src/codemap.ts";
 
 test("vocabulariesForType maps node types to open vocabularies (doc 10 §3)", () => {
@@ -10,6 +10,9 @@ test("vocabulariesForType maps node types to open vocabularies (doc 10 §3)", ()
   assert.deepEqual(vocabulariesForType("symptom").map((t) => t.prefix), ["HP", "MESH"]);
   assert.deepEqual(vocabulariesForType("nutrition").map((t) => t.prefix), ["CHEBI", "FOODON", "MESH"]);
   assert.deepEqual(vocabulariesForType("mechanism").map((t) => t.prefix), ["GO", "MESH"]);
+  assert.deepEqual(vocabulariesForType("drug").map((t) => t.prefix), ["RXNORM", "CHEBI", "MESH"]);
+  assert.deepEqual(vocabulariesForType("organization").map((t) => t.prefix), ["ROR"]);
+  assert.deepEqual(vocabulariesForType("expert").map((t) => t.prefix), ["ORCID"]);
   // non-term-resolvable types get nothing auto-resolved
   assert.deepEqual(vocabulariesForType("paper"), []);
   assert.deepEqual(vocabulariesForType("population"), []);
@@ -64,4 +67,28 @@ test("parseMeshSummary extracts MESH:Dxxxxxx + descriptor terms", () => {
   const cands = parseMeshSummary(json);
   assert.deepEqual(cands, [{ curie: "MESH:D055948", labels: ["Sarcopenia"] }]);
   assert.deepEqual(parseMeshSummary({}), []);
+});
+
+test("parseRxnorm turns exact-name CUIs into RXNORM candidates (name verified by the query)", () => {
+  const cands = parseRxnorm({ idGroup: { rxnormId: ["310965"] } }, "ibuprofen");
+  assert.deepEqual(cands, [{ curie: "RXNORM:310965", labels: ["ibuprofen"] }]);
+  assert.deepEqual(parseRxnorm({ idGroup: {} }, "nope"), []);
+});
+
+test("parseRor maps org hits to ROR curies with name/alias/acronym labels", () => {
+  const json = { items: [{ id: "https://ror.org/03vek6s52", name: "Harvard University", acronyms: ["HU"], aliases: ["Harvard"] }] };
+  assert.deepEqual(parseRor(json), [{ curie: "ROR:03vek6s52", labels: ["Harvard University", "Harvard", "HU"] }]);
+  assert.deepEqual(parseRor({ items: [] }), []);
+});
+
+test("parseOrcid accepts only a unique exact-name match (person collisions are unsafe)", () => {
+  const one = { "expanded-result": [{ "orcid-id": "0000-0002-1825-0097", "given-names": "Josiah", "family-names": "Carberry" }] };
+  assert.deepEqual(parseOrcid(one, "Josiah Carberry"), [{ curie: "ORCID:0000-0002-1825-0097", labels: ["Josiah Carberry"] }]);
+  // two people with the same name → refuse to guess
+  const two = { "expanded-result": [
+    { "orcid-id": "0000-0002-1825-0097", "given-names": "Josiah", "family-names": "Carberry" },
+    { "orcid-id": "0000-0003-0000-0000", "given-names": "Josiah", "family-names": "Carberry" },
+  ] };
+  assert.deepEqual(parseOrcid(two, "Josiah Carberry"), []);
+  assert.deepEqual(parseOrcid({ "expanded-result": null }, "x"), []);
 });

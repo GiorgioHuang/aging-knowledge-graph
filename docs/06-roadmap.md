@@ -78,12 +78,13 @@ don't skip ahead — later phases assume earlier foundations.
 - **Deliverables:**
   - Connectors for PubMed / WHO / CDC / Canadian guidelines (see
     [`05-data-sources.md`](05-data-sources.md)).
-  - ✅ **Standards mapping** — attach open CURIEs (MONDO/HP/GO/ChEBI/FoodOn/MeSH)
-    to nodes by resolving each node's name against EBI OLS4 / NLM MeSH and
-    accepting a code only on a verified label match (`src/codemap.ts`,
-    `POST /admin/map-codes`); codes render as authority links in the UI. See
-    [`10-standards-alignment.md`](10-standards-alignment.md). SNOMED/ICD/ATC
-    stay out of the open data (reached via MONDO/HPO xrefs when needed).
+  - ✅ **Standards mapping** — attach open CURIEs to nodes by resolving each
+    node's name against the authorities and accepting a code only on a verified
+    label match (`src/codemap.ts`): MONDO/HP/GO/ChEBI/FoodOn (EBI OLS4), MeSH
+    (NLM), RxNorm (RxNav), ROR (orgs), ORCID (experts). Run from the `/admin`
+    Maintenance button or `POST /admin/map-codes`; codes render as authority
+    links in the UI. See [`10-standards-alignment.md`](10-standards-alignment.md).
+    SNOMED/ICD/ATC stay out of the open data (reached via MONDO/HPO xrefs).
   - Ontology mapping to restricted vocabularies (SNOMED CT via MONDO/HPO xrefs); FHIR bindings.
   - Knowledge-evolution/timeline views.
   - A published, citable **open dataset** (feeds *GraceAge Data*) and public APIs
