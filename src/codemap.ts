@@ -14,9 +14,13 @@ import type { Node } from "./types.ts";
 // A small, fast model is plenty for "what is the canonical term for this concept".
 const CODEMAP_MODEL = process.env.CODEMAP_MODEL || "claude-haiku-4-5";
 const TERM_SYSTEM = `You translate a healthy-aging knowledge-graph node into CONTROLLED-VOCABULARY TERMS.
-Given a node (name, type, optional description), output up to 3 canonical term STRINGS exactly as they appear in standard biomedical vocabularies (MeSH, MONDO, HPO, ChEBI, FoodOn, GO) that denote the SAME concept — the precise standard name a curator would look up.
-Examples: "Fall incidence" → "Accidental Falls"; "Alzheimer's disease and related dementia" → "Alzheimer Disease"; "Muscle strength (grip)" → "Hand Strength"; "Delirium incidence" → "Delirium".
-Rules: output TERM STRINGS ONLY — never codes or IDs. Give the single most precise standard term first. If the concept has NO standard vocabulary term, output an empty list. Respond JSON only: {"terms": ["..."]}.`;
+Given a node (name, type, optional description), output the canonical term STRING(S) exactly as they appear in standard biomedical vocabularies (MeSH, MONDO, HPO, ChEBI, FoodOn, GO) that are an EXACT SYNONYM of the node's concept — the SAME meaning.
+Examples: "Fall incidence" → "Accidental Falls"; "Alzheimer's disease and related dementia" → "Alzheimer Disease"; "Delirium incidence" → "Delirium".
+STRICT rules:
+- Output the single most precise standard term. Add a second ONLY if it is a true synonym of the SAME concept.
+- NEVER output a BROADER category, a RELATED concept, or a MEASURE/SCALE of the concept (e.g. do NOT map "Fear of falling" to "Postural Balance", nor "Lean mass" to "Body Composition").
+- If there is no standard term meaning exactly this concept, output an EMPTY list — do not substitute something close.
+- Term strings only, never codes/IDs. Respond JSON only: {"terms": ["..."]}.`;
 
 type TermNode = { name: string; type: string; aliases?: string[]; description?: string };
 export function buildTermPrompt(node: TermNode): string {
@@ -24,7 +28,7 @@ export function buildTermPrompt(node: TermNode): string {
 - name: ${node.name}
 - type: ${node.type}${node.aliases?.length ? `\n- aliases: ${node.aliases.join(", ")}` : ""}${node.description ? `\n- description: ${String(node.description).slice(0, 300)}` : ""}
 
-Canonical controlled-vocabulary term(s) for the SAME concept? Reply JSON only: {"terms": ["..."]}.`;
+Exact-synonym controlled-vocabulary term(s) for the SAME concept (empty if none)? Reply JSON only: {"terms": ["..."]}.`;
 }
 
 /** Parse {"terms": [...]} into up to 3 non-empty term strings. */
@@ -41,6 +45,27 @@ async function suggestVocabTerms(node: TermNode): Promise<string[]> {
       { system: TERM_SYSTEM, maxTokens: 150, thinking: false, model: CODEMAP_MODEL });
     return parseTermSuggestions(text);
   } catch { return []; }
+}
+
+// Verification gate: a match found only via an AI-suggested term is confirmed to
+// be the SAME concept before it's accepted (keeps precision high).
+const VERIFY_SYSTEM = `You verify a proposed controlled-vocabulary mapping for a healthy-aging knowledge graph.
+Answer whether the vocabulary term denotes the SAME concept as the node — a synonym or the node's exact concept, NOT merely broader, narrower, or related. When in doubt, answer false. Respond JSON only: {"same": true|false}.`;
+export function buildVerifyPrompt(node: TermNode, candidate: Candidate): string {
+  return `Node: ${node.name} (${node.type})${node.description ? ` — ${String(node.description).slice(0, 200)}` : ""}
+Vocabulary term: ${candidate.curie} "${candidate.labels[0] ?? ""}"${candidate.def ? ` — ${String(candidate.def).slice(0, 200)}` : ""}
+
+Same concept? Reply JSON only: {"same": true|false}.`;
+}
+export function parseVerifyDecision(text: string): boolean {
+  try { return extractJson<{ same?: unknown }>(text).same === true; } catch { return false; }
+}
+async function confirmSameConcept(node: TermNode, candidate: Candidate): Promise<boolean> {
+  try {
+    const text = await complete([{ role: "user", content: buildVerifyPrompt(node, candidate) }],
+      { system: VERIFY_SYSTEM, maxTokens: 60, thinking: false, model: CODEMAP_MODEL });
+    return parseVerifyDecision(text);
+  } catch { return false; }
 }
 
 export interface Target { prefix: string; source: "ols" | "mesh" | "rxnorm" | "ror" | "orcid"; ontology?: string }
@@ -225,11 +250,10 @@ async function olsSearch(term: string, ontology: string, prefix: string): Promis
 }
 
 async function meshSearch(term: string): Promise<Candidate[]> {
-  // Look the term up in the MeSH vocabulary directly (substring match; the exact
-  // one is selected by acceptCurie). Descriptors first, then broader entry terms.
-  const url = (kind: string) => `https://id.nlm.nih.gov/mesh/lookup/${kind}?label=${encodeURIComponent(term)}&match=contains&limit=10`;
-  const d = parseMeshLookup(await jget(url("descriptor")));
-  return d.length ? d : parseMeshLookup(await jget(url("term")));
+  // Look the term up among MeSH DESCRIPTORS directly (substring match; the exact
+  // one is selected by acceptCurie). Only descriptors (D-codes) — entry-term
+  // (T-code) resources aren't the identifiers we attach.
+  return parseMeshLookup(await jget(`https://id.nlm.nih.gov/mesh/lookup/descriptor?label=${encodeURIComponent(term)}&match=contains&limit=10`));
 }
 
 async function rxnormSearch(term: string): Promise<Candidate[]> {
@@ -254,30 +278,48 @@ async function runSearch(t: Target, term: string): Promise<Candidate[]> {
   } catch { return []; }
 }
 
+/** Search one target for a node and decide a match. A candidate matching the
+ *  node's own name/alias is trusted; one matching only an AI-suggested term is
+ *  confirmed by the model (same-concept?) before it counts. */
+interface MatchResult { cands: Candidate[]; hit?: Candidate; via?: "name" | "ai"; verified?: boolean }
+async function matchTarget(t: Target, queries: string[], variants: string[], llmTerms: string[], node: TermNode, opts: { verify?: boolean } = {}): Promise<MatchResult> {
+  const cands: Candidate[] = [];
+  const seen = new Set<string>();
+  let nameHit: Candidate | undefined, aiHit: Candidate | undefined;
+  for (const term of queries) {
+    for (const c of await runSearch(t, term)) {
+      if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
+      if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
+      if (!nameHit && acceptCurie(variants, c)) nameHit = c;
+      else if (!aiHit && acceptCurie(llmTerms, c)) aiHit = c;
+    }
+    if (nameHit) break;
+  }
+  if (nameHit) return { cands, hit: nameHit, via: "name", verified: true };
+  if (aiHit) {
+    const verified = opts.verify === false || await confirmSameConcept(node, aiHit);
+    return { cands, hit: verified ? aiHit : undefined, via: "ai", verified };
+  }
+  return { cands };
+}
+
 /** Resolve open CURIEs for one node. Skips vocabularies the node already has a
- *  code for. First tries a verified exact label match (cheap, no LLM); if none
- *  and `llm` is on, a small model picks the best of the REAL candidates the
- *  authority returned (it can only choose from those — no invented ids). */
+ *  code for. Matches the node's own name directly; for descriptive names, the
+ *  LLM proposes the canonical vocabulary TERM (never an id), the authority
+ *  supplies the real code, and a verification call guards precision. */
 export async function resolveCodesForNode(
   node: Pick<Node, "type" | "name" | "aliases" | "external_ids" | "description">,
   opts: { llm?: boolean } = {},
 ): Promise<{ added: string[]; all: string[] }> {
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
-  // The LLM proposes canonical vocabulary TERM STRINGS (never ids); the authority
-  // still supplies the real code and must actually contain the term.
   const llmTerms = opts.llm ? await suggestVocabTerms(node) : [];
-  const matchTerms = [...nameVariants(node.name, node.aliases ?? []), ...llmTerms];
+  const variants = nameVariants(node.name, node.aliases ?? []);
   const queries = uniqByNorm([...searchTerms(node.name, node.aliases ?? []), ...llmTerms]).slice(0, 5);
   const added: string[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) continue;
-    let hit: Candidate | undefined;
-    for (const term of queries) {
-      const cands = await runSearch(t, term);
-      hit = cands.find((c) => c.curie.split(":")[0].toUpperCase() === t.prefix.toUpperCase() && acceptCurie(matchTerms, c));
-      if (hit) break;
-    }
+    const { hit } = await matchTarget(t, queries, variants, llmTerms, node);
     if (hit) { added.push(hit.curie); havePrefix.add(t.prefix.toUpperCase()); }
   }
   return { added, all: mergeCodes(existing, added) };
@@ -291,24 +333,18 @@ export async function diagnoseNode(node: Pick<Node, "type" | "name" | "aliases" 
   const existing = node.external_ids ?? [];
   const havePrefix = new Set(existing.map((c) => c.split(":")[0].toUpperCase()));
   const llmTerms = opts.llm ? await suggestVocabTerms(node) : [];
-  const matchTerms = [...nameVariants(node.name, node.aliases ?? []), ...llmTerms];
+  const variants = nameVariants(node.name, node.aliases ?? []);
   const queries = uniqByNorm([...searchTerms(node.name, node.aliases ?? []), ...llmTerms]).slice(0, 5);
   const targets: TargetTrace[] = [];
   for (const t of vocabulariesForType(node.type)) {
     if (havePrefix.has(t.prefix.toUpperCase())) { targets.push({ prefix: t.prefix, source: t.source, queries: [], candidates: [], decision: "already has a code" }); continue; }
-    const cands: Candidate[] = [];
-    const seen = new Set<string>();
-    let hit: Candidate | undefined;
-    for (const term of queries) {
-      for (const c of await runSearch(t, term)) {
-        if (c.curie.split(":")[0].toUpperCase() !== t.prefix.toUpperCase()) continue;
-        if (!seen.has(c.curie)) { seen.add(c.curie); cands.push(c); }
-        if (!hit && acceptCurie(matchTerms, c)) hit = c;
-      }
-      if (hit) break;
-    }
-    const decision = hit ? `matched → ${hit.curie}` : cands.length ? `no matching term (${cands.length} candidates)` : "no candidates returned by the authority";
-    targets.push({ prefix: t.prefix, source: t.source, queries, candidates: cands.slice(0, 8).map((c) => ({ curie: c.curie, label: c.labels[0] ?? "" })), decision });
+    const m = await matchTarget(t, queries, variants, llmTerms, node);
+    let decision: string;
+    if (m.hit) decision = `matched (${m.via === "name" ? "name" : "AI-verified"}) → ${m.hit.curie}`;
+    else if (m.via === "ai") decision = "AI term matched a candidate but verification rejected it (not the same concept)";
+    else if (m.cands.length) decision = `no matching term (${m.cands.length} candidates)`;
+    else decision = "no candidates returned by the authority";
+    targets.push({ prefix: t.prefix, source: t.source, queries, candidates: m.cands.slice(0, 8).map((c) => ({ curie: c.curie, label: c.labels[0] ?? "" })), decision });
   }
   return { type: node.type, name: node.name, aiTerms: llmTerms, targets };
 }
@@ -329,23 +365,30 @@ export async function mapUnmappedNodes({ limit = 25, force = false, llm }: { lim
   const useLlm = (llm ?? true) && isLlmConfigured(); // AI disambiguation, only if an API key is present
   const sql = await getSql();
   await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_checked_at timestamptz");
+  await sql.query("ALTER TABLE node ADD COLUMN IF NOT EXISTS codes_auto text[] NOT NULL DEFAULT '{}'");
   // force = re-map everything: clear the checked flag so the normal pagination
   // (WHERE codes_checked_at IS NULL) walks every eligible node again.
   if (force) await sql.query("UPDATE node SET codes_checked_at = NULL WHERE type = ANY($1)", [TYPES_WITH_TARGETS]);
   const rows = (await sql.query(
-    `SELECT id, type, name, aliases, description, external_ids FROM node
+    `SELECT id, type, name, aliases, description, external_ids, codes_auto FROM node
       WHERE type = ANY($1) AND codes_checked_at IS NULL
       ORDER BY updated_at DESC LIMIT $2`,
     [TYPES_WITH_TARGETS, Math.max(1, Math.min(200, limit))],
-  )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; description: string | null; external_ids: string[] | null }>;
+  )) as Array<{ id: string; type: string; name: string; aliases: string[] | null; description: string | null; external_ids: string[] | null; codes_auto: string[] | null }>;
 
   let mapped = 0, codesAdded = 0;
   const details: MapSummary["details"] = [];
   for (const r of rows) {
-    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: r.external_ids ?? [] }, { llm: useLlm });
-    if (added.length) {
-      await sql.query("UPDATE node SET external_ids=$2, codes_checked_at=now(), updated_at=now() WHERE id=$1", [r.id, all]);
-      mapped++; codesAdded += added.length; details.push({ id: r.id, name: r.name, added });
+    const existing = r.external_ids ?? [];
+    const prevAuto = r.codes_auto ?? [];
+    // On a re-map, strip our OWN prior codes and re-resolve fresh (this corrects
+    // earlier loose matches); curator/seed codes (not in codes_auto) are kept.
+    const kept = force ? existing.filter((c) => !prevAuto.includes(c)) : existing;
+    const { added, all } = await resolveCodesForNode({ type: r.type, name: r.name, aliases: r.aliases ?? [], description: r.description ?? undefined, external_ids: kept }, { llm: useLlm });
+    const newAuto = force ? added : Array.from(new Set([...prevAuto, ...added]));
+    if (force || added.length) {
+      await sql.query("UPDATE node SET external_ids=$2, codes_auto=$3, codes_checked_at=now(), updated_at=now() WHERE id=$1", [r.id, all, newAuto]);
+      if (added.length) { mapped++; codesAdded += added.length; details.push({ id: r.id, name: r.name, added }); }
     } else {
       await sql.query("UPDATE node SET codes_checked_at=now() WHERE id=$1", [r.id]);
     }

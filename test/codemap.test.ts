@@ -4,7 +4,7 @@ import {
   vocabulariesForType, normTerm, acceptCurie, mergeCodes, codeUrl,
   parseOls, parseMeshLookup, parseRxnorm, parseRor, parseOrcid,
   deParen, parenParts, nameVariants, searchTerms,
-  buildTermPrompt, parseTermSuggestions, TYPES_WITH_TARGETS,
+  buildTermPrompt, parseTermSuggestions, buildVerifyPrompt, parseVerifyDecision, TYPES_WITH_TARGETS,
 } from "../src/codemap.ts";
 
 test("vocabulariesForType maps node types to open vocabularies (doc 10 §3)", () => {
@@ -108,6 +108,17 @@ test("parseTermSuggestions pulls up to 3 non-empty term strings (never ids)", ()
   assert.deepEqual(parseTermSuggestions('here: {"terms": ["Alzheimer Disease", "Dementia", "", "x", "y"]}'), ["Alzheimer Disease", "Dementia", "x"]);
   assert.deepEqual(parseTermSuggestions('{"terms": []}'), []);   // no standard term → nothing
   assert.deepEqual(parseTermSuggestions("not json"), []);
+});
+
+test("buildVerifyPrompt shows node vs candidate; parseVerifyDecision is strict", () => {
+  const p = buildVerifyPrompt({ name: "Fear of falling", type: "outcome" }, { curie: "MESH:D004856", labels: ["Postural Balance"] });
+  assert.match(p, /Fear of falling/);
+  assert.match(p, /MESH:D004856 "Postural Balance"/);
+  assert.match(p, /"same"/);
+  assert.equal(parseVerifyDecision('{"same": true}'), true);
+  assert.equal(parseVerifyDecision('{"same": false}'), false);   // rejects the wrong match
+  assert.equal(parseVerifyDecision("garbage"), false);           // default deny on unparseable
+  assert.equal(parseVerifyDecision('{"same": "yes"}'), false);   // only strict boolean true passes
 });
 
 test("parseOrcid accepts only a unique exact-name match (person collisions are unsafe)", () => {
