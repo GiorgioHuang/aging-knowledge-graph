@@ -23,14 +23,30 @@ Ordered roughly by priority; all are **future-phase** capabilities (see the
 
 | Source | What it provides | Notes |
 |--------|------------------|-------|
-| **PubMed** | Biomedical literature (papers, abstracts, MeSH) | Primary evidence source; E-utilities API |
-| **WHO** | Global guidelines, reports (e.g. healthy ageing) | Authoritative, citable |
-| **CDC** | US public-health guidance & data | Falls, physical activity, etc. |
-| **Canadian clinical practice guidelines** | Region-specific guidance | Relevant to the founder's CCA/Canada context |
-| **Clinical practice guidelines (general)** | Consensus recommendations | High evidence strength |
+| **PubMed** | Biomedical literature (papers, abstracts, MeSH) | ✅ Connector shipped (`src/pubmedharvest.ts`); E-utilities API |
+| **WHO** | Global guidelines, reports (e.g. healthy ageing) | ✅ Guideline connector shipped (`src/guidelineharvest.ts`) |
+| **CDC** | US public-health guidance & data | ✅ via the guideline connector — falls, physical activity, etc. |
+| **Canadian clinical practice guidelines** | Region-specific guidance | ✅ via the guideline connector; relevant to the founder's CCA/Canada context |
+| **Clinical practice guidelines (general)** | Consensus recommendations | ✅ via the guideline connector; high evidence strength |
 
 Each ingested item becomes a **Paper/Research/Organization node** plus
 **evidence records** on the edges it supports — never free-floating facts.
+
+### Connectors (shipped)
+
+Two data-source connectors run from `/admin` (token-gated) and write new claims
+`unverified`, so the Reviewer still checks grounding:
+
+- **PubMed** (`POST /admin/harvest`) — search recent higher-quality evidence
+  (reviews / meta-analyses / RCTs in older adults) for a query and extract claims
+  **grounded in each abstract**; the source is a real PMID by construction.
+- **Clinical guideline** (`POST /admin/harvest-guideline`) — extract
+  recommendation claims from one practice guideline (WHO / CDC / Canadian
+  geriatric societies, etc.). Provide the document as pasted **text** (required
+  for PDFs — no zero-dep PDF parsing) or an **HTML URL** we fetch and strip;
+  the source id is the guideline's **DOI** (preferred) or **URL** as a CURIE.
+  Each claim carries a **verbatim quote** from the guideline and is typically a
+  `recommends` edge with `study_design: guideline`.
 
 ## Ontology & standards mapping
 

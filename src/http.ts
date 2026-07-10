@@ -30,6 +30,7 @@ import { saveAskLog, listAskLogs } from "./asklog.ts";
 import { processGapQuestions } from "./gaptopics.ts";
 import { mapUnmappedNodes, listUnmappedNodes, diagnoseNode } from "./codemap.ts";
 import { harvestPubmed } from "./pubmedharvest.ts";
+import { harvestGuideline } from "./guidelineharvest.ts";
 import { AGENTS, type AgentName } from "./models.ts";
 import * as Q from "./queries.ts";
 import type { Graph } from "./types.ts";
@@ -324,6 +325,33 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         }
       }
 
+      // ---- data-source connector: harvest a clinical guideline → grounded claims ----
+      if (path === "/admin/harvest-guideline" && req.method === "POST") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        if (!isLlmConfigured()) return send(res, 503, { error: "requires ANTHROPIC_API_KEY (the extractor)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        let body: Record<string, unknown> = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
+        const title = String(body.title ?? "").trim();
+        if (!title) return send(res, 400, { error: "title is required" });
+        try {
+          const out = await harvestGuideline({
+            title,
+            issuer: body.issuer ? String(body.issuer) : undefined,
+            year: body.year ? String(body.year) : undefined,
+            url: body.url ? String(body.url) : undefined,
+            doi: body.doi ? String(body.doi) : undefined,
+            text: body.text ? String(body.text) : undefined,
+          });
+          if (state.reload) await state.reload();
+          return send(res, 200, out);
+        } catch (e) {
+          return send(res, 502, { error: `guideline harvest failed: ${(e as Error).message}` });
+        }
+      }
+
       // ---- standards mapping: explain why one node did/didn't get a code ----
       if (path === "/admin/node-codes-preview" && req.method === "GET") {
         const token = process.env.CURATOR_TOKEN;
@@ -513,7 +541,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           ui: { home: "/", browse: "/browse", about: "/about" },
           management: { curation: "/admin", review: "/review" }, // token-gated (HTTP Basic), not public
           read: ["/health", "/queries", "/query/:name", "/nodes", "/nodes/:id", "/claims", "/ontology", "/review/queue", "/review/stats", "/agents/config", "/contact/messages", "/ask/log", "POST /mcp"],
-          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest"],
+          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-guideline"],
         });
       }
       if (path === "/health") {

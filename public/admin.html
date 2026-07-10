@@ -119,6 +119,29 @@
   </fieldset>
 
   <fieldset>
+    <legend>Data sources — harvest a clinical guideline</legend>
+    <p class="hint">Extract recommendation claims from a practice guideline (WHO · CDC · Canadian geriatric societies · etc.). Give it the document text (paste it — required for PDFs) <b>or</b> an HTML page URL to fetch, plus a source (a DOI, or the URL). Each claim is grounded in a <b>verbatim quote</b> from the guideline, written <b>unverified</b>, and goes to the <a href="/review">review queue</a>; the source is the guideline's DOI/URL.</p>
+    <p>
+      <input id="gl_title" placeholder="Guideline title, e.g. WHO guidelines on falls prevention in older age" style="width:420px;display:inline-block" />
+    </p>
+    <p>
+      <input id="gl_issuer" placeholder="Issuing body (WHO, CDC, …)" style="width:220px;display:inline-block" />
+      <label class="hint">year <input id="gl_year" placeholder="2021" style="width:70px;display:inline-block" /></label>
+    </p>
+    <p>
+      <input id="gl_url" placeholder="URL (HTML page to fetch, or just the source link)" style="width:420px;display:inline-block" />
+      <input id="gl_doi" placeholder="DOI (optional, preferred source)" style="width:220px;display:inline-block" />
+    </p>
+    <p>
+      <textarea id="gl_text" placeholder="Paste the guideline text here (optional if a fetchable HTML URL is given; required for PDFs)" style="width:100%;height:120px;display:block"></textarea>
+    </p>
+    <p>
+      <button id="gl_btn" onclick="harvestGuideline()">Harvest guideline</button>
+    </p>
+    <div id="gl_out" class="out" hidden></div>
+  </fieldset>
+
+  <fieldset>
     <legend>Maintenance</legend>
     <p class="hint">Attach standard vocabulary codes (MONDO · HP · GO · ChEBI · FoodOn · MeSH · RxNorm · ROR · ORCID) to nodes by resolving their names against the authorities — only accepted on a verified name match. Runs in batches; safe to re-run.</p>
     <p>
@@ -198,6 +221,26 @@ async function harvest() {
     if (status !== 200) { show(out, body, false); return; }
     const lines = (body.claims || []).map(c => `${c.merged ? "＋evidence" : "＋claim"} ${c.claimId}  (PMID:${c.pmid})`);
     show(out, `Done — ${body.papers} paper(s), ${body.proposed} extracted, ${body.created} new claim(s), ${body.merged} evidence added, ${body.reused_nodes} node(s) reused.\n\n${lines.join("\n")}${body.skipped && body.skipped.length ? "\n\nskipped:\n" + body.skipped.map(s => `· ${s.pmid ? "PMID:" + s.pmid + " — " : ""}${s.reason}`).join("\n") : ""}`, true);
+    await reload();
+  } catch (e) { show(out, String((e && e.message) || e), false); }
+  finally { btn.disabled = false; }
+}
+
+// Data-source connector: extract recommendation claims from a clinical guideline.
+async function harvestGuideline() {
+  const out = $("gl_out"), btn = $("gl_btn");
+  const title = $("gl_title").value.trim();
+  const issuer = $("gl_issuer").value.trim(), year = $("gl_year").value.trim();
+  const url = $("gl_url").value.trim(), doi = $("gl_doi").value.trim(), text = $("gl_text").value.trim();
+  if (!title) { show(out, "enter the guideline title", false); return; }
+  if (!doi && !url) { show(out, "give a source: a DOI, or a URL", false); return; }
+  if (!text && !url) { show(out, "paste the guideline text, or give an HTML URL to fetch", false); return; }
+  btn.disabled = true; show(out, "harvesting guideline… (this can take a minute)", true);
+  try {
+    const { status, body } = await req("POST", "/admin/harvest-guideline", { title, issuer, year, url, doi, text });
+    if (status !== 200) { show(out, body, false); return; }
+    const lines = (body.claims || []).map(c => `${c.merged ? "＋evidence" : "＋claim"} ${c.claimId}`);
+    show(out, `Done — ${body.chars} chars, ${body.proposed} extracted, ${body.created} new claim(s), ${body.merged} evidence added, ${body.reused_nodes} node(s) reused.\nsource: ${body.source_id}\n\n${lines.join("\n")}${body.skipped && body.skipped.length ? "\n\nskipped:\n" + body.skipped.map(s => `· ${s.reason}`).join("\n") : ""}`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }

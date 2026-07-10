@@ -80,8 +80,14 @@ don't skip ahead — later phases assume earlier foundations.
     meta-analyses / RCTs in older adults) for a query and extract claims
     GROUNDED in each abstract, with the real PMID as the source by construction
     (`src/pubmedharvest.ts`, `POST /admin/harvest`, `/admin` "Harvest" form).
-    New claims are `unverified` → Reviewer gate. Next: WHO / CDC / Canadian
-    guideline connectors (see [`05-data-sources.md`](05-data-sources.md)).
+    New claims are `unverified` → Reviewer gate.
+  - ✅ **Guideline connector** — extract recommendation claims from one clinical
+    practice guideline (WHO / CDC / Canadian geriatric societies) from pasted
+    text or a fetched HTML page, each grounded in a VERBATIM quote, with the
+    guideline's DOI/URL as the source CURIE (`src/guidelineharvest.ts`,
+    `POST /admin/harvest-guideline`, `/admin` "Harvest guideline" form). New
+    claims are `unverified` → Reviewer gate. See
+    [`05-data-sources.md`](05-data-sources.md).
   - ✅ **Standards mapping** — attach open CURIEs to nodes by resolving each
     node's name against the authorities and accepting a code only on a verified
     label match (`src/codemap.ts`): MONDO/HP/GO/ChEBI/FoodOn (EBI OLS4), MeSH
