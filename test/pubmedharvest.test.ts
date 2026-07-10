@@ -1,0 +1,14 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { buildExtractPrompt } from "../src/pubmedharvest.ts";
+
+test("buildExtractPrompt embeds the abstract, vocabulary, and existing nodes", () => {
+  const meta = { source_id: "PMID:1", exists: true, title: "Exercise and falls", journal: "JAMA", year: "2020", study_design: "rct", abstract: "In older adults, exercise reduced the rate of falls by 20%." };
+  const p = buildExtractPrompt(meta, [{ id: "ga:exercise", name: "Exercise", type: "exercise" }]);
+  assert.match(p, /Exercise and falls/);
+  assert.match(p, /reduced the rate of falls/);        // the abstract text is present to ground extraction
+  assert.match(p, /node types:/);
+  assert.match(p, /relationship types:/);
+  assert.match(p, /ga:exercise \(exercise\): Exercise/); // existing node offered for reuse
+  assert.match(p, /raw JSON array/);
+});

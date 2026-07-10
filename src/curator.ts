@@ -188,9 +188,12 @@ export async function persistCandidate(
   model: string,
   resolver: NodeResolver,
   counters: { reused: number } = { reused: 0 },
+  knownSource?: { source_id: string },
 ): Promise<{ ok: boolean; claimId?: string; source?: string; merged?: boolean; errors?: string[] }> {
   // Resolve the citation BEFORE touching the graph: no real source ⇒ no write.
-  const cite = await resolveCitation({
+  // A connector that already has the real id (e.g. a harvested PMID) passes it
+  // as knownSource, so we skip the title→id lookup.
+  const cite = knownSource ?? await resolveCitation({
     title: c.citation.title, first_author: c.citation.first_author, year: c.citation.year, journal: c.citation.journal,
   });
   if (!cite) return { ok: false, errors: [`citation not resolved: "${(c.citation.title ?? "").slice(0, 90)}"`] };
