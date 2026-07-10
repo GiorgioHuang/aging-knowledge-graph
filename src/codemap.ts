@@ -15,12 +15,12 @@ import type { Node } from "./types.ts";
 // A small, fast model is plenty for "what is the canonical term for this concept".
 const CODEMAP_MODEL = process.env.CODEMAP_MODEL || "claude-haiku-4-5";
 const TERM_SYSTEM = `You translate a healthy-aging knowledge-graph node into CONTROLLED-VOCABULARY TERMS.
-Given a node (name, type, optional description), output the canonical term STRING(S) exactly as they appear in standard biomedical vocabularies (MeSH, MONDO, HPO, ChEBI, FoodOn, GO) that are an EXACT SYNONYM of the node's concept — the SAME meaning.
-Examples: "Fall incidence" → "Accidental Falls"; "Alzheimer's disease and related dementia" → "Alzheimer Disease"; "Delirium incidence" → "Delirium".
-STRICT rules:
-- Output the single most precise standard term. Add a second ONLY if it is a true synonym of the SAME concept.
-- NEVER output a BROADER category, a RELATED concept, or a MEASURE/SCALE of the concept (e.g. do NOT map "Fear of falling" to "Postural Balance", nor "Lean mass" to "Body Composition").
-- If there is no standard term meaning exactly this concept, output an EMPTY list — do not substitute something close.
+Given a node (name, type, optional description), output the canonical term STRING(S) as they appear in standard biomedical vocabularies (MeSH, MONDO, HPO, ChEBI, FoodOn, GO) that best represent the node's concept:
+- ENTITY nodes (disease, symptom, drug, nutrient, intervention, exercise, device, technology, organisation): the exact synonym if one exists, otherwise the closest STANDARD concept the node is an instance/subtype of. E.g. "Age-related macular degeneration" → "Macular Degeneration"; "Alzheimer's disease and related dementia" → "Alzheimer Disease".
+- MEASURE nodes (outcome, scale, mechanism — often "X incidence / X rate / risk of X / an assessment of X"): the underlying concept X being measured. E.g. "Delirium incidence" → "Delirium"; "Fall incidence" → "Accidental Falls".
+Rules:
+- Output the single most precise standard term first; add a second only if clearly applicable.
+- Do NOT output an UNRELATED term (e.g. do NOT map "Fear of falling" to "Postural Balance"). If nothing standard fits, output an EMPTY list.
 - Term strings only, never codes/IDs. Respond JSON only: {"terms": ["..."]}.`;
 
 type TermNode = { name: string; type: string; aliases?: string[]; description?: string };
@@ -29,7 +29,7 @@ export function buildTermPrompt(node: TermNode): string {
 - name: ${node.name}
 - type: ${node.type}${node.aliases?.length ? `\n- aliases: ${node.aliases.join(", ")}` : ""}${node.description ? `\n- description: ${String(node.description).slice(0, 300)}` : ""}
 
-Exact-synonym controlled-vocabulary term(s) for the SAME concept (empty if none)? Reply JSON only: {"terms": ["..."]}.`;
+Best standard controlled-vocabulary term(s) for this concept (empty if none fit)? Reply JSON only: {"terms": ["..."]}.`;
 }
 
 /** Parse {"terms": [...]} into up to 3 non-empty term strings. */
@@ -58,7 +58,11 @@ async function suggestVocabTerms(node: TermNode): Promise<string[]> {
 // Verification gate: a match found only via an AI-suggested term is confirmed to
 // be the SAME concept before it's accepted (keeps precision high).
 const VERIFY_SYSTEM = `You verify a proposed controlled-vocabulary mapping for a healthy-aging knowledge graph.
-Answer whether the vocabulary term denotes the SAME concept as the node — a synonym or the node's exact concept, NOT merely broader, narrower, or related. When in doubt, answer false. Respond JSON only: {"same": true|false}.`;
+Answer TRUE when the term is a reasonable STANDARD mapping for the node:
+- ENTITY nodes (disease, symptom, drug, nutrient, intervention, exercise, device, technology, organisation): the term is a synonym, OR the node is a more specific instance/subtype of the term (the closest standard concept it belongs to). E.g. "Age-related macular degeneration" ↔ "Macular Degeneration" = true.
+- MEASURE nodes (outcome, scale, mechanism — e.g. "X incidence / X rate / risk of X / an assessment of X"): the term is the underlying concept X being measured. E.g. "Delirium incidence" ↔ "Delirium" = true.
+Answer FALSE only when the term is UNRELATED or a genuinely different concept — e.g. "Fear of falling" ↔ "Postural Balance" = false, "Lean mass" ↔ "Body Composition" = false.
+Respond JSON only: {"same": true|false}.`;
 export function buildVerifyPrompt(node: TermNode, candidate: Candidate): string {
   return `Node: ${node.name} (${node.type})${node.description ? ` — ${String(node.description).slice(0, 200)}` : ""}
 Vocabulary term: ${candidate.curie} "${candidate.labels[0] ?? ""}"${candidate.def ? ` — ${String(candidate.def).slice(0, 200)}` : ""}
