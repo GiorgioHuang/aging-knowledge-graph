@@ -123,10 +123,11 @@
   <fieldset>
     <legend>Browse / delete</legend>
     <p><button class="secondary" onclick="reload()">Refresh</button>
-       <input id="filter" placeholder="filter nodes…" oninput="nodePage=0;renderLists()" style="width:200px;display:inline-block" /></p>
+       <input id="filter" placeholder="filter nodes &amp; claims…" oninput="nodePage=0;claimPage=0;renderLists()" style="width:200px;display:inline-block" /></p>
     <strong>Nodes</strong><div id="nodeList"></div>
     <div id="nodePager" class="pager"></div>
     <strong style="display:block;margin-top:12px">Claims</strong><div id="claimList"></div>
+    <div id="claimPager" class="pager"></div>
   </fieldset>
 
   <footer class="site-footer">
@@ -141,7 +142,7 @@
 const $ = (id) => document.getElementById(id);
 let GRAPH = { nodes: [], edges: [] };
 let editId = null;
-let nodePage = 0;
+let nodePage = 0, claimPage = 0;
 
 const fill = (sel, items, blank) => sel.innerHTML = (blank ? ["<option value=''></option>"] : []).concat(items.map(i => `<option>${i}</option>`)).join("");
 const show = (el, obj, ok) => { el.hidden = false; el.className = "out " + (ok ? "ok" : "err"); el.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2); };
@@ -269,10 +270,17 @@ function renderLists() {
   $("nodePager").innerHTML = `<button class="mini secondary" ${nodePage <= 0 ? "disabled" : ""} onclick="nodePage--;renderLists()">‹ prev</button>
     <span>${from}–${to} of ${nodes.length}${pages > 1 ? ` · page ${nodePage + 1}/${pages}` : ""}</span>
     <button class="mini secondary" ${nodePage >= pages - 1 ? "disabled" : ""} onclick="nodePage++;renderLists()">next ›</button>`;
-  $("claimList").innerHTML = GRAPH.edges
-    .filter(e => !f || nm(e.source).toLowerCase().includes(f) || nm(e.target).toLowerCase().includes(f))
+  const claims = GRAPH.edges.filter(e => !f || nm(e.source).toLowerCase().includes(f) || nm(e.target).toLowerCase().includes(f));
+  const cpages = Math.max(1, Math.ceil(claims.length / NODES_PER_PAGE));
+  if (claimPage >= cpages) claimPage = cpages - 1;
+  if (claimPage < 0) claimPage = 0;
+  $("claimList").innerHTML = claims.slice(claimPage * NODES_PER_PAGE, claimPage * NODES_PER_PAGE + NODES_PER_PAGE)
     .map(e => `<div class="item"><span class="grow">${nm(e.source)} <code>${e.type}${e.direction ? " (" + e.direction + ")" : ""}</code> ${nm(e.target)} <code>${e.dose ? e.dose + " · " : ""}${e.comparator ? "vs " + e.comparator + " · " : ""}${e.certainty || ""} ${e.status}</code></span>
-     <button class="mini danger" onclick="del('claims','${e.id}')">del</button></div>`).join("");
+     <button class="mini danger" onclick="del('claims','${e.id}')">del</button></div>`).join("") || '<div class="hint">no matching claims</div>';
+  const cf = claims.length ? claimPage * NODES_PER_PAGE + 1 : 0, ct = Math.min(claims.length, (claimPage + 1) * NODES_PER_PAGE);
+  $("claimPager").innerHTML = `<button class="mini secondary" ${claimPage <= 0 ? "disabled" : ""} onclick="claimPage--;renderLists()">‹ prev</button>
+    <span>${cf}–${ct} of ${claims.length}${cpages > 1 ? ` · page ${claimPage + 1}/${cpages}` : ""}</span>
+    <button class="mini secondary" ${claimPage >= cpages - 1 ? "disabled" : ""} onclick="claimPage++;renderLists()">next ›</button>`;
 }
 async function imp(fmt, kind) {
   const text = $("imp").value.trim(); if (!text) return;
