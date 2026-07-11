@@ -7,7 +7,10 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Dimension MUST match the embedder (src/embeddings.ts). The offline default
--- HashingEmbedder is 256-dim; switch to e.g. 1536 for OpenAI text-embedding-3-small.
+-- HashingEmbedder is 256-dim. To switch to a real API embedder (e.g. Voyage 512,
+-- OpenAI 1536), set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY and run
+-- `npm run db:reembed -- --apply` — it resizes this column and re-embeds every
+-- row. (This file stays 256 for a clean initial install.)
 CREATE TABLE embedding (
   id         text PRIMARY KEY,
   owner_type text NOT NULL CHECK (owner_type IN ('node', 'claim')),

@@ -30,6 +30,15 @@ export function claimText(g: Graph, c: Claim): string {
   ].filter(Boolean).join(" ");
 }
 
+/** L2-normalize a vector (unit length), so cosine == dot product and vectors
+ *  from any embedder are directly comparable. */
+export function l2normalize(v: number[]): number[] {
+  let n = 0;
+  for (const x of v) n += x * x;
+  n = Math.sqrt(n) || 1;
+  return v.map((x) => x / n);
+}
+
 // ---- offline hashing embedder (default) ----
 
 function hash32(s: string): number {
@@ -70,7 +79,15 @@ export class HashingEmbedder implements Embedder {
   }
 }
 
-// ---- optional remote embedder (guarded; never used offline/in tests) ----
+// ---- real (API) embedder — guarded; activates only when configured ----
+// OpenAI-compatible protocol (Bearer auth, {model,input} → {data:[{embedding}]}),
+// which Voyage AI (Anthropic-recommended) and OpenAI both speak. Batches to the
+// provider's input cap, retries transient errors, and L2-normalizes the result.
+
+const PROVIDER_PRESETS: Record<string, { url: string; model: string; dim: number }> = {
+  voyage: { url: "https://api.voyageai.com/v1/embeddings", model: "voyage-3-lite", dim: 512 },
+  openai: { url: "https://api.openai.com/v1/embeddings", model: "text-embedding-3-small", dim: 1536 },
+};
 
 class RemoteEmbedder implements Embedder {
   id: string;
@@ -78,33 +95,65 @@ class RemoteEmbedder implements Embedder {
   private url: string;
   private key: string;
   private model: string;
-  constructor(url: string, key: string, model: string, dim: number) {
+  private batch: number;
+  constructor(url: string, key: string, model: string, dim: number, batch = 96) {
     this.url = url;
     this.key = key;
     this.model = model;
-    this.id = `remote:${model}`;
     this.dim = dim;
+    this.batch = batch;
+    this.id = `remote:${model}`;
   }
   async embed(texts: string[]): Promise<number[][]> {
-    const res = await fetch(this.url, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${this.key}` },
-      body: JSON.stringify({ model: this.model, input: texts }),
-    });
-    if (!res.ok) throw new Error(`embeddings provider error ${res.status}`);
-    const json = (await res.json()) as { data: { embedding: number[] }[] };
-    return json.data.map((d) => d.embedding);
+    const out: number[][] = [];
+    for (let i = 0; i < texts.length; i += this.batch) {
+      const vecs = await this.call(texts.slice(i, i + this.batch));
+      for (const v of vecs) out.push(l2normalize(v));
+    }
+    return out;
+  }
+  private async call(input: string[]): Promise<number[][]> {
+    let lastErr = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 600 * attempt));
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      try {
+        const res = await fetch(this.url, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${this.key}` },
+          body: JSON.stringify({ model: this.model, input }),
+          signal: ctrl.signal,
+        });
+        if (res.status === 429 || res.status >= 500) { lastErr = `status ${res.status}`; continue; }
+        if (!res.ok) throw new Error(`embeddings provider error ${res.status}`);
+        const json = (await res.json()) as { data: { embedding: number[]; index?: number }[] };
+        // Sort by index so the returned order matches the input order.
+        const rows = json.data.slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+        return rows.map((d) => d.embedding);
+      } catch (e) {
+        lastErr = (e as Error).message || "fetch failed";
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    throw new Error(`embeddings provider failed: ${lastErr}`);
   }
 }
 
-/** Default offline embedder unless EMBEDDINGS_PROVIDER + key are configured. */
+/** The active embedder. A real (API) embedder is used when EMBEDDINGS_PROVIDER
+ *  + EMBEDDINGS_API_KEY are set (e.g. `voyage` or `openai`, or a custom
+ *  EMBEDDINGS_URL/MODEL/DIM); otherwise the zero-config offline HashingEmbedder,
+ *  so search and tests always run. NOTE: switching embedders changes the vector
+ *  space AND dimension — re-embed every row with scripts/reembed.ts after. */
 export function getEmbedder(): Embedder {
-  const provider = process.env.EMBEDDINGS_PROVIDER;
+  const provider = (process.env.EMBEDDINGS_PROVIDER ?? "").toLowerCase();
   const key = process.env.EMBEDDINGS_API_KEY;
   if (provider && key) {
-    const url = process.env.EMBEDDINGS_URL ?? "https://api.openai.com/v1/embeddings";
-    const model = process.env.EMBEDDINGS_MODEL ?? "text-embedding-3-small";
-    const dim = Number(process.env.EMBEDDINGS_DIM ?? 1536);
+    const preset = PROVIDER_PRESETS[provider];
+    const url = process.env.EMBEDDINGS_URL ?? preset?.url ?? PROVIDER_PRESETS.openai.url;
+    const model = process.env.EMBEDDINGS_MODEL ?? preset?.model ?? PROVIDER_PRESETS.openai.model;
+    const dim = Number(process.env.EMBEDDINGS_DIM ?? preset?.dim ?? PROVIDER_PRESETS.openai.dim);
     return new RemoteEmbedder(url, key, model, dim);
   }
   return new HashingEmbedder();

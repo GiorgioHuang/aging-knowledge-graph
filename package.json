@@ -22,7 +22,8 @@
     "db:setup:psql": "bash scripts/neon-setup.sh",
     "db:search": "node --experimental-strip-types src/cli.ts query search",
     "agents:run": "node --experimental-strip-types scripts/agent-run.ts",
-    "db:dedup": "node --experimental-strip-types scripts/dedup-claims.ts"
+    "db:dedup": "node --experimental-strip-types scripts/dedup-claims.ts",
+    "db:reembed": "node --experimental-strip-types scripts/reembed.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

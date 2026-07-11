@@ -64,20 +64,46 @@ project on `…pooler.c-N.REGION.aws.neon.tech`, allow
 returns `HTTP 403 Host not in allowlist`. Add it in the environment's network
 egress settings, or run `db:setup` from an environment with open egress.
 
-## Using a neural embedding provider (optional)
+## Using a real (API) embedding provider
 
-The default is offline. To use real neural embeddings, set:
+The offline `HashingEmbedder` is a placeholder — it captures lexical overlap, not
+meaning. For real semantic search and better duplicate detection, switch to an
+API embedder. The protocol is OpenAI-compatible (`{model,input}` →
+`{data:[{embedding}]}`), which **Voyage AI** (Anthropic-recommended) and OpenAI
+both speak. A `provider` preset fills in the endpoint, model, and dimension, so
+usually two env vars are enough:
 
 ```bash
+# Voyage (recommended) — preset: voyage-3-lite, 512-dim
+EMBEDDINGS_PROVIDER=voyage
+EMBEDDINGS_API_KEY=pa-...
+
+# or OpenAI — preset: text-embedding-3-small, 1536-dim
 EMBEDDINGS_PROVIDER=openai
 EMBEDDINGS_API_KEY=sk-...
-EMBEDDINGS_MODEL=text-embedding-3-small   # 1536-dim
-EMBEDDINGS_DIM=1536                       # must match db/migrations/0002 vector(N)
+
+# override any preset field if needed:
+# EMBEDDINGS_MODEL=voyage-3   EMBEDDINGS_DIM=1024   EMBEDDINGS_URL=https://…/v1/embeddings
 ```
 
-Anthropic recommends **Voyage AI** for embeddings; any OpenAI-compatible
-`/v1/embeddings` endpoint works via `EMBEDDINGS_URL`. Re-run `npm run db:setup`
-after changing the dimension (the `embedding.vector` column must match).
+The real embedder batches to the provider's input cap, retries transient errors,
+and L2-normalizes its output. Keys live in Secret Manager, never the repo.
+
+### Switching embedders = re-embed everything
+
+An embedder change alters both the vector **space** and its **dimension**, so old
+vectors become meaningless and the `embedding.vector` column no longer fits. After
+setting the env vars, run the cutover once:
+
+```bash
+npm run db:reembed                 # dry-run: prints embedder id, dim, row counts (no DB needed)
+EMBEDDINGS_PROVIDER=voyage EMBEDDINGS_API_KEY=… DATABASE_URL=… \
+  npm run db:reembed -- --apply    # drop index → clear → resize column → re-embed → rebuild index
+```
+
+It refuses to `--apply` with the offline hashing embedder (pass `--force` to
+override). Query-time and index-time embedders are the same `getEmbedder()`, so
+they can never drift apart.
 
 ## Status & honesty
 
