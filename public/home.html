@@ -33,8 +33,9 @@
   /* search input + Ask/Search buttons live in the header, pushed top-right */
   .gtopbar .gtitle { min-width:0; }
   .gsearchbar { margin-left:auto; display:flex; align-items:center; gap:8px; }
-  .gsearchbar input { width:min(42vw,340px); background:rgba(15,27,25,.92); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 11px; font:inherit; }
-  .gsearchbar input::placeholder { color:#6f817c; }
+  .gsearchbar input { width:min(50vw,520px); background:rgba(15,27,25,.92); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 11px; font:inherit; }
+  .gsearchbar input::placeholder { color:#6f817c; opacity:1; transition:opacity .4s ease; }
+  .gsearchbar input.phfade::placeholder { opacity:0; }
   .gsearchbar button { padding:8px 12px; }
   /* search RESULTS float top-left, where the search box used to be */
   .gresults { top:60px; left:12px; width:min(94vw,420px); max-height:min(72vh,660px); overflow:auto; padding:10px; }
@@ -116,7 +117,7 @@
       <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/browse">browse claims</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
     </div>
     <div class="gsearchbar">
-      <input id="q" title="Ask = a cited answer from the graph · Search = matching concepts &amp; claims" placeholder="Ask or search — e.g. “what reduces the risk of falls”" onkeydown="if(event.key==='Enter')doAsk()" />
+      <input id="q" title="Ask = a cited answer from the graph · Search = matching concepts &amp; claims" placeholder="Ask or search — e.g. “what reduces the risk of falls in older adults”" onkeydown="if(event.key==='Enter')doAsk()" />
       <button onclick="doAsk()">Ask</button>
       <button class="secondary" onclick="doSearch()">Search</button>
     </div>
@@ -558,6 +559,24 @@ async function doAsk() {
     box.innerHTML = renderAnswer(b);
   } catch (e) { box.innerHTML = '<div class="rhint">Ask failed (' + escs(e.message || e) + ").</div>"; }
 }
+
+// Rotating placeholder: cycle the example query and the Ask/Search usage hints
+// inside the search box (paused while it's focused or already has text).
+(function cyclePlaceholder() {
+  const el = $("q"); if (!el) return;
+  const MSGS = [
+    "Ask or search — e.g. “what reduces the risk of falls in older adults”",
+    "Ask → a cited answer grounded only in the graph’s evidence",
+    "Search → matching concepts & claims · click a result to open it",
+  ];
+  let i = 0; el.placeholder = MSGS[0];
+  setInterval(() => {
+    if (el.value || document.activeElement === el) return;   // don't disturb typing
+    el.classList.add("phfade");
+    setTimeout(() => { i = (i + 1) % MSGS.length; el.placeholder = MSGS[i]; el.classList.remove("phfade"); }, 400);
+  }, 4200);
+})();
+
 load();
 </script>
 </body>
