@@ -16,9 +16,10 @@ COPY src ./src
 COPY seed ./seed
 COPY db ./db
 COPY public ./public
-# scripts/agent-run.ts is the Cloud Run Job entrypoint (Curator + Reviewer).
-# (.dockerignore keeps the rest of scripts/ out of the image.)
+# Cloud Run Job entrypoints: agent-run.ts (Curator + Reviewer) and reembed.ts
+# (embedder cutover). (.dockerignore keeps the rest of scripts/ out of the image.)
 COPY scripts/agent-run.ts ./scripts/agent-run.ts
+COPY scripts/reembed.ts ./scripts/reembed.ts
 
 # Cloud Run injects PORT (default 8080); src/http.ts reads it.
 EXPOSE 8080

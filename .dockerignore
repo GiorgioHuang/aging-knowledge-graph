@@ -5,6 +5,7 @@ test
 docs
 scripts/*
 !scripts/agent-run.ts
+!scripts/reembed.ts
 db/seed.generated.sql
 *.log
 .DS_Store
