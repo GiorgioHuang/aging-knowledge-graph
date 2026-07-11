@@ -160,7 +160,7 @@
     <div id="mc_out" class="out" hidden></div>
     <div id="mu_out" hidden></div>
     <p class="hint" style="margin-top:14px">Embeddings — under a rate-limited provider (Voyage free tier = 3 RPM) new writes are <b>not</b> embedded inline, so after a harvest run this <b>top-up</b>: it embeds only the nodes/claims that don't yet have a vector (non-destructive; the index/column are untouched). <b>Many missing rows?</b> At 3 RPM it can exceed this page's ~100s timeout — run the <b>Cloud Run Job</b> instead: <code>gcloud run jobs execute graceage-reembed --region &lt;REGION&gt; --project &lt;PROJECT&gt;</code>. A destructive <b>full</b> rebuild is only needed when switching embedder (button below → hold Shift, or the CLI <code>--full</code>).</p>
-    <p><button id="re_btn" class="secondary" onclick="reembed(event)">Embed new rows (top-up)</button></p>
+    <p><button id="re_btn" class="secondary" onclick="reembed(event)">Embed new rows (top-up)</button><span id="re_pending" class="hint" style="margin-left:10px"></span></p>
     <div id="re_out" class="out" hidden></div>
   </fieldset>
 
@@ -213,10 +213,27 @@ async function init() {
   await reload();
 }
 
+// Show how many nodes/claims still need a vector under the active embedder, so
+// the top-up button reflects live state without a click. Stays quiet on
+// read-only / no-DB / no-token instances (the dry-run route is gated).
+async function refreshPending() {
+  const el = $("re_pending");
+  if (!el) return;
+  try {
+    const { status, body } = await req("GET", "/admin/reembed");
+    if (status !== 200) { el.textContent = ""; return; }
+    const missing = (body.nodes || 0) + (body.claims || 0);
+    const real = body.embedder && !String(body.embedder).startsWith("hashing");
+    el.textContent = `· ${missing} pending · ${body.embedder} (${body.dim}-dim)${real ? "" : " — offline placeholder"}`;
+    el.style.opacity = missing > 0 ? "0.9" : "0.55";
+  } catch { el.textContent = ""; }
+}
+
 async function reload() {
   GRAPH = await (await fetch("/graph")).json();
   $("nodes").innerHTML = GRAPH.nodes.map(n => `<option value="${n.id}">${n.name}</option>`).join("");
   renderLists();
+  refreshPending();
 }
 function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "noopener"); }
 
@@ -304,6 +321,7 @@ async function reembed(ev) {
     const { status, body } = await req("POST", "/admin/reembed", full ? { mode: "full" } : {});
     if (status !== 200) { show(out, body, false); return; }
     show(out, `Done (${body.mode}) — embedder ${body.embedder} (${body.dim}-dim), embedded ${body.written} row(s): ${body.nodes} node(s) + ${body.claims} claim(s).`, true);
+    refreshPending();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
 }
