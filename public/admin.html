@@ -159,6 +159,9 @@
     </p>
     <div id="mc_out" class="out" hidden></div>
     <div id="mu_out" hidden></div>
+    <p class="hint" style="margin-top:14px">Embeddings — when a real provider is configured (Voyage/OpenAI via env), re-embed every node &amp; claim into that vector space. Needed once after switching embedder; the vector column is resized and the ANN index rebuilt. Safe to re-run.</p>
+    <p><button id="re_btn" class="secondary" onclick="reembed()">Re-embed all (apply real vectors)</button></p>
+    <div id="re_out" class="out" hidden></div>
   </fieldset>
 
   <fieldset>
@@ -274,6 +277,19 @@ async function harvestGuideline() {
     const lines = (body.claims || []).map(c => `${c.merged ? "＋evidence" : "＋claim"} ${c.claimId}`);
     show(out, `Done — ${body.via || "?"} · ${body.chars} chars, ${body.proposed} extracted, ${body.created} new claim(s), ${body.merged} evidence added, ${body.reused_nodes} node(s) reused.\nsource: ${body.source_id}\n\n${lines.join("\n")}${body.skipped && body.skipped.length ? "\n\nskipped:\n" + body.skipped.map(s => `· ${s.reason}`).join("\n") : ""}`, true);
     await reload();
+  } catch (e) { show(out, String((e && e.message) || e), false); }
+  finally { btn.disabled = false; }
+}
+
+// Embedder cutover: re-embed all nodes/claims into the active embedder's space.
+async function reembed() {
+  const out = $("re_out"), btn = $("re_btn");
+  if (!confirm("Re-embed every node and claim with the currently-configured embedder? This resizes the vector column and rebuilds the index.")) return;
+  btn.disabled = true; show(out, "re-embedding… (this can take a moment)", true);
+  try {
+    const { status, body } = await req("POST", "/admin/reembed", {});
+    if (status !== 200) { show(out, body, false); return; }
+    show(out, `Done — embedder ${body.embedder} (${body.dim}-dim), re-embedded ${body.written} row(s): ${body.nodes} node(s) + ${body.claims} claim(s).`, true);
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
 }

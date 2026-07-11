@@ -31,6 +31,8 @@ import { processGapQuestions } from "./gaptopics.ts";
 import { mapUnmappedNodes, listUnmappedNodes, diagnoseNode } from "./codemap.ts";
 import { harvestPubmed, harvestGuidelineCanon } from "./pubmedharvest.ts";
 import { harvestGuideline } from "./guidelineharvest.ts";
+import { getEmbedder } from "./embeddings.ts";
+import { reembedAll } from "./reembed.ts";
 import { AGENTS, type AgentName } from "./models.ts";
 import * as Q from "./queries.ts";
 import type { Graph } from "./types.ts";
@@ -371,6 +373,28 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         }
       }
 
+      // ---- re-embed everything with the active embedder (embedder cutover) ----
+      if (path === "/admin/reembed" && req.method === "POST") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        const emb = getEmbedder();
+        // Guard: don't overwrite real vectors with the offline placeholder space.
+        let body: Record<string, unknown> = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { /* no body needed */ }
+        if (emb.id.startsWith("hashing") && body.force !== true) {
+          return send(res, 400, { error: `active embedder is ${emb.id} (offline placeholder). Set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY, then retry; or pass {"force":true} to re-embed with the placeholder.` });
+        }
+        try {
+          const out = await reembedAll({ apply: true });
+          if (state.reload) await state.reload();
+          return send(res, 200, out);
+        } catch (e) {
+          return send(res, 502, { error: `re-embed failed: ${(e as Error).message}` });
+        }
+      }
+
       // ---- standards mapping: explain why one node did/didn't get a code ----
       if (path === "/admin/node-codes-preview" && req.method === "GET") {
         const token = process.env.CURATOR_TOKEN;
@@ -560,7 +584,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           ui: { home: "/", browse: "/browse", about: "/about" },
           management: { curation: "/admin", review: "/review" }, // token-gated (HTTP Basic), not public
           read: ["/health", "/queries", "/query/:name", "/nodes", "/nodes/:id", "/claims", "/ontology", "/review/queue", "/review/stats", "/agents/config", "/contact/messages", "/ask/log", "POST /mcp"],
-          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-canon", "POST /admin/harvest-guideline"],
+          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-canon", "POST /admin/harvest-guideline", "POST /admin/reembed"],
         });
       }
       if (path === "/health") {

@@ -40,7 +40,7 @@ jobs:
           NUM=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)' 2>/dev/null || true)
           [ -z "$NUM" ] && { echo "::warning::could not resolve project number; skipping secret IAM"; exit 0; }
           RUNTIME_SA="${NUM}-compute@developer.gserviceaccount.com"
-          for S in DATABASE_URL CURATOR_TOKEN ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
+          for S in DATABASE_URL CURATOR_TOKEN ANTHROPIC_API_KEY EMBEDDINGS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
             if gcloud secrets describe "$S" --project "$PROJECT" >/dev/null 2>&1; then
               gcloud secrets add-iam-policy-binding "$S" --project "$PROJECT" \
                 --member "serviceAccount:${RUNTIME_SA}" \
@@ -65,6 +65,17 @@ jobs:
           if gcloud secrets describe ANTHROPIC_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
             SECRETS="$SECRETS,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
           fi
+          # Real (Voyage/OpenAI) embeddings: mount the key + turn on the provider.
+          # Without the key the app falls back to the offline hashing embedder, so
+          # EMBEDDINGS_PROVIDER is harmless when the secret is absent.
+          ENVVARS="COMMIT_SHA=${{ github.sha }}"
+          if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
+            SECRETS="$SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
+            ENVVARS="$ENVVARS,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}"
+            echo "::notice::EMBEDDINGS_API_KEY found — real embeddings on (provider ${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}). Run POST /admin/reembed once to migrate existing vectors."
+          else
+            echo "::notice::EMBEDDINGS_API_KEY secret not found — using the offline hashing embedder."
+          fi
           # Contact-form → Telegram push (both must exist to enable it).
           if gcloud secrets describe TELEGRAM_BOT_TOKEN --project "$PROJECT" >/dev/null 2>&1 \
              && gcloud secrets describe TELEGRAM_CHAT_ID --project "$PROJECT" >/dev/null 2>&1; then
@@ -79,7 +90,7 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --update-secrets "$SECRETS" \
-            --update-env-vars "COMMIT_SHA=${{ github.sha }}"
+            --update-env-vars "$ENVVARS"
 
       - name: Deploy agents Job
         # Keeps the Curator + Reviewer Cloud Run Job (scripts/agent-run.ts) in
@@ -99,6 +110,15 @@ jobs:
           fi
           IMAGE=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
           if [ -z "$IMAGE" ]; then echo "::warning::could not resolve service image; skipping agents Job"; exit 0; fi
+          # The Curator/Reviewer write nodes/claims, which embeds them — so the Job
+          # MUST use the SAME embedder as the service, or it would write vectors of
+          # the wrong dimension/space. Mount the embeddings key + provider when set.
+          JOB_SECRETS="DATABASE_URL=DATABASE_URL:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+          JOB_ENV="CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }}"
+          if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
+            JOB_SECRETS="$JOB_SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
+            JOB_ENV="$JOB_ENV,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}"
+          fi
           gcloud run jobs deploy "$JOB" \
             --image "$IMAGE" \
             --project "$PROJECT" \
@@ -106,8 +126,8 @@ jobs:
             --command node \
             --args="--experimental-strip-types,scripts/agent-run.ts" \
             --cpu 1 --memory 512Mi --max-retries 1 --task-timeout 1800s \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
-            --set-env-vars "CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }}"
+            --set-secrets "$JOB_SECRETS" \
+            --set-env-vars "$JOB_ENV"
 
       - name: Show URL
         run: |

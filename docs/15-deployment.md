@@ -86,6 +86,23 @@ curl "$URL/query/search?q=falling%20in%20the%20elderly&k=5"   # pgvector-backed
   transport on Cloud Run is a possible later addition.
 - **Migrations on deploy:** kept separate (step 1) rather than on cold start. For
   CI, run `db:setup` as a Cloud Run **Job** using the same image.
+- **Real embeddings (Voyage/OpenAI):** the app uses the offline hashing embedder
+  until an `EMBEDDINGS_API_KEY` secret exists. To turn on real embeddings:
+  1. Store the key (never in the repo/chat):
+     ```bash
+     printf %s "$VOYAGE_KEY" \
+       | gcloud secrets create EMBEDDINGS_API_KEY --data-file=- --replication-policy=automatic
+     ```
+     (rotate later with `gcloud secrets versions add EMBEDDINGS_API_KEY --data-file=-`).
+     Provider defaults to `voyage`; set the repo **Variable** `EMBEDDINGS_PROVIDER=openai`
+     to switch. The deploy mounts the key + provider on **both** the service and the
+     agents Job (both write embeddings, so they must match).
+  2. Deploy (push to `main`), so the new revision has the key.
+  3. **Migrate existing vectors once:** the vector space + dimension change, so
+     hit **`POST /admin/reembed`** (or the `/admin` "Re-embed all" button, or
+     `npm run db:reembed -- --apply` with the secrets) to resize the column and
+     re-embed every node/claim. Query- and index-time use the same embedder, so
+     they can't drift.
 
 ## CI/CD (GitHub Actions)
 
