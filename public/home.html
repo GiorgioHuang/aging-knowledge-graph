@@ -9,9 +9,12 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-  .pagefooter { flex:0 0 auto; text-align:center; padding:6px 12px; font-size:11px; color:var(--muted); background:var(--bg); border-top:1px solid var(--line); }
-  .pagefooter .fver { opacity:.75; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; }
+  /* footer floats over the canvas as a translucent bottom bar (mirrors the header) */
+  .pagefooter { position:absolute; left:0; right:0; bottom:0; z-index:4; text-align:center; padding:6px 14px; font-size:11px; color:var(--muted);
+    background:linear-gradient(to top, rgba(8,14,13,.8), rgba(8,14,13,.26)); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border-top:1px solid rgba(42,58,54,.5); }
+  .pagefooter a { color:var(--accent); }
+  .pagefooter .fver { opacity:.8; }
   /* header floats over the full-viewport canvas as a translucent top bar */
   .gtopbar { position:absolute; top:0; left:0; right:0; z-index:4; display:flex; align-items:center; gap:12px; padding:8px 16px;
     background:linear-gradient(to bottom, rgba(8,14,13,.78), rgba(8,14,13,.26)); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
@@ -28,7 +31,7 @@
   code { color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); }
   /* graph fills the whole viewport below the header */
-  .graphwrap { position: relative; flex:1 1 auto; width:100%; min-height:0; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
+  .graphwrap { position: relative; width:100%; height:100%; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
   .graphwrap canvas { width:100%; height:100%; display:block; background:transparent; touch-action:none; }
   .goverlay { position:absolute; z-index:3; background:rgba(12,20,18,.82); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:10px; }
   .goverlay.soft { background:rgba(12,20,18,.34); }
@@ -43,7 +46,7 @@
   .gresults { top:60px; left:12px; width:min(94vw,420px); max-height:min(72vh,660px); overflow:auto; padding:10px; }
   .gresults .results { margin:0; }
   /* controls — zoom + redraw + context, bottom-right */
-  .gcontrols { right:12px; bottom:12px; padding:8px; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .gcontrols { right:12px; bottom:42px; padding:8px; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
   .gcontrols .gzoomrow { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .gcontrols .gzoomrow button { flex:1; height:32px; padding:0; background:transparent; border:0; color:var(--fg); font-size:17px; line-height:1; cursor:pointer; }
   .gcontrols .gzoomrow button + button { border-left:1px solid var(--line); }
@@ -51,7 +54,7 @@
   .gcontrols .gctl { padding:6px 10px; font-size:13px; }
   .gcontrols .gcheck { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; white-space:nowrap; }
   /* legend + how-to + disclaimer, bottom-left */
-  .glegendpanel { left:12px; bottom:12px; width:min(94vw,360px); max-height:46%; overflow:auto; padding:8px 30px 9px 10px; }
+  .glegendpanel { left:12px; bottom:42px; width:min(94vw,360px); max-height:calc(46% - 30px); overflow:auto; padding:8px 30px 9px 10px; }
   .glegendpanel .gphead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
   .glegendpanel .gptitle { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
   .glegendpanel .legend { margin-top:0; }
@@ -147,7 +150,7 @@
     <div class="gphead"><span class="gptitle">Legend &amp; guide</span></div>
     <div id="glegend" class="legend"></div>
     <div class="ghint">drag nodes · +/− to zoom · drag background to pan · click a node for its claims &amp; evidence · colour = node type</div>
-    <div class="gfoot">Not medical advice — research &amp; education only. · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span></div>
+    <div class="gfoot">Not medical advice — research &amp; education only.</div>
   </div>
 
   <!-- node detail — top-right -->
@@ -159,9 +162,10 @@
     <div id="detail" class="gdbody hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
   </div>
   <div class="goverlay gerr" id="gdetail" hidden></div>
-</div>
 
-<footer class="pagefooter">© <span id="cpyr">2026</span> Healthy Aging Intelligence Lab (HAIL) · <span class="fver" title="build version">{{VERSION}}</span></footer>
+  <!-- footer — floats over the canvas as a translucent bottom bar -->
+  <footer class="pagefooter">© <span id="cpyr">2026</span> Healthy Aging Intelligence Lab (HAIL) · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span> · <span class="fver" title="build version">{{VERSION}}</span></footer>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
