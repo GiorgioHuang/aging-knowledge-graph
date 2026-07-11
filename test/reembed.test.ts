@@ -48,7 +48,14 @@ test("reembedAll dry-run reports the embedder + row counts without touching a DB
   const r = await reembedAll({ apply: false });
   assert.equal(r.applied, false);
   assert.equal(r.written, 0);
+  assert.equal(r.mode, "missing");            // incremental top-up is the default
   assert.match(r.embedder, /^hashing-/);      // offline default in tests
   assert.equal(r.dim, 256);
-  assert.ok(r.nodes > 0 && r.claims > 0, "counts the seed graph");
+  assert.ok(r.nodes > 0 && r.claims > 0, "counts the seed graph (no DB ⇒ full set)");
+});
+
+test("reembedAll dry-run honors an explicit full mode", async () => {
+  const r = await reembedAll({ apply: false, mode: "full" });
+  assert.equal(r.mode, "full");
+  assert.equal(r.applied, false);
 });

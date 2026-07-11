@@ -3,13 +3,14 @@
 // (the vector space + dimension change, so every row must be recomputed).
 //
 //   DRY RUN (default, no DB needed):  npm run db:reembed
-//   APPLY (real embedder):            EMBEDDINGS_PROVIDER=voyage \
-//                                     EMBEDDINGS_API_KEY=… \
-//                                     DATABASE_URL=… npm run db:reembed -- --apply
+//   INCREMENTAL top-up (default):     … DATABASE_URL=… npm run db:reembed -- --apply
+//   FULL cutover (embedder switch):   … npm run db:reembed -- --apply --full
 //   (pull secrets: gcloud secrets versions access latest --secret=DATABASE_URL)
 //
-// Applying with the offline HashingEmbedder is refused unless --force (it would
-// overwrite real vectors with the placeholder space).
+// "missing" (default) embeds only rows lacking a current-embedder vector — the
+// cheap post-harvest top-up. "--full" is the destructive cutover for an embedder
+// SWITCH (resize the column, re-embed everything, rebuild the index).
+// Applying with the offline HashingEmbedder is refused unless --force.
 
 import { isDbConfigured } from "../src/db.ts";
 import { getEmbedder } from "../src/embeddings.ts";
@@ -18,6 +19,7 @@ import { reembedAll } from "../src/reembed.ts";
 async function main(): Promise<void> {
   const apply = process.argv.includes("--apply");
   const force = process.argv.includes("--force");
+  const mode = process.argv.includes("--full") ? "full" : "missing";
   if (apply && !isDbConfigured()) { console.log(JSON.stringify({ skipped: "DATABASE_URL not set" })); return; }
 
   const emb = getEmbedder();
@@ -27,8 +29,8 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const r = await reembedAll({ apply });
-  console.log(JSON.stringify({ ...r, mode: apply ? "applied" : "dry-run (use -- --apply to execute)" }, null, 2));
+  const r = await reembedAll({ apply, mode });
+  console.log(JSON.stringify({ ...r, run: apply ? "applied" : "dry-run (use -- --apply to execute)" }, null, 2));
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -399,8 +399,11 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         if (emb.id.startsWith("hashing") && body.force !== true) {
           return send(res, 400, { error: `active embedder is ${emb.id} (offline placeholder). Set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY, then retry; or pass {"force":true} to re-embed with the placeholder.` });
         }
+        // Default: incremental top-up (embed only new/missing rows). {"mode":"full"}
+        // does the destructive cutover — only needed when switching embedder.
+        const mode = body.mode === "full" ? "full" : "missing";
         try {
-          const out = await reembedAll({ apply: true });
+          const out = await reembedAll({ apply: true, mode });
           if (state.reload) await state.reload();
           return send(res, 200, out);
         } catch (e) {

@@ -104,20 +104,26 @@ curl "$URL/query/search?q=falling%20in%20the%20elderly&k=5"   # pgvector-backed
      writes, under a rate limit **inline embedding on writes is skipped** — the
      reembed Job (below) is what (re)builds vectors. Raise `EMBEDDINGS_MAX_RPM`
      (or unset it) once on a paid tier to re-enable inline embedding.
-  4. **Migrate / rebuild vectors with the reembed Job** (the vector space +
-     dimension change on switch; and new writes aren't embedded inline under a
-     rate limit). At 3 RPM a full rebuild takes minutes, so it runs as a Cloud
-     Run **Job**, not the web button (which would exceed the ~100s gateway
-     timeout):
-     ```bash
-     gcloud run jobs execute graceage-reembed --region <REGION> --project <PROJECT>
-     # watch: gcloud run jobs executions list --job graceage-reembed --region <REGION>
-     ```
-     Run it after switching embedder and after big harvests. It embeds every
-     node/claim (paced), resizes the column, and rebuilds the hnsw index; it's
-     idempotent, so re-running also recovers a table left empty by a timed-out
-     attempt. The `/admin` "Re-embed all" button does the same for small graphs.
-     Query- and index-time use the same embedder, so they can't drift.
+  4. **(Re)build vectors with the reembed Job.** Two modes:
+     - **`missing` (default) — incremental top-up.** Embeds only rows that don't
+       yet have a vector under the current embedder — run after each big harvest
+       (new writes aren't embedded inline under a rate limit). Non-destructive:
+       the index/column are untouched; new rows are indexed on insert. This is
+       what the deployed Job (`scripts/reembed.ts --apply`) does:
+       ```bash
+       gcloud run jobs execute graceage-reembed --region <REGION> --project <PROJECT>
+       # watch: gcloud run jobs executions list --job graceage-reembed --region <REGION>
+       ```
+     - **`full` — the cutover for an embedder SWITCH** (dimension changes). Drops
+       the index, clears, resizes the column, re-embeds everything, rebuilds the
+       index. Run it ONCE when you first turn on / change the provider:
+       `npm run db:reembed -- --apply --full` (CLI, no gateway timeout), or the
+       `/admin` "Embed new rows" button while holding **Shift**.
+
+     At 3 RPM both run for minutes on a large graph, so prefer the Job/CLI over
+     the web button (which caps at ~100s). Both are idempotent — re-running a
+     `full` also recovers a table left empty by a timed-out attempt. Query- and
+     index-time use the same embedder, so they can't drift.
 
 ## CI/CD (GitHub Actions)
 

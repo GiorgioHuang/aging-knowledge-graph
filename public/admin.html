@@ -159,8 +159,8 @@
     </p>
     <div id="mc_out" class="out" hidden></div>
     <div id="mu_out" hidden></div>
-    <p class="hint" style="margin-top:14px">Embeddings — re-embed every node &amp; claim into the active provider's vector space (resizes the vector column, rebuilds the ANN index). Under a rate-limited provider (Voyage free tier = 3 RPM) new writes are <b>not</b> embedded inline; run this to (re)build vectors — including after a big harvest. <b>Large graphs:</b> at 3 RPM a full rebuild takes minutes and will exceed this page's ~100s timeout, so run the <b>reembed Cloud Run Job</b> instead: <code>gcloud run jobs execute graceage-reembed --region &lt;REGION&gt; --project &lt;PROJECT&gt;</code>. The button below is fine for small graphs / a quick top-up.</p>
-    <p><button id="re_btn" class="secondary" onclick="reembed()">Re-embed all (button — small graphs)</button></p>
+    <p class="hint" style="margin-top:14px">Embeddings — under a rate-limited provider (Voyage free tier = 3 RPM) new writes are <b>not</b> embedded inline, so after a harvest run this <b>top-up</b>: it embeds only the nodes/claims that don't yet have a vector (non-destructive; the index/column are untouched). <b>Many missing rows?</b> At 3 RPM it can exceed this page's ~100s timeout — run the <b>Cloud Run Job</b> instead: <code>gcloud run jobs execute graceage-reembed --region &lt;REGION&gt; --project &lt;PROJECT&gt;</code>. A destructive <b>full</b> rebuild is only needed when switching embedder (button below → hold Shift, or the CLI <code>--full</code>).</p>
+    <p><button id="re_btn" class="secondary" onclick="reembed(event)">Embed new rows (top-up)</button></p>
     <div id="re_out" class="out" hidden></div>
   </fieldset>
 
@@ -282,22 +282,28 @@ async function harvestGuideline() {
 }
 
 // Embedder cutover: re-embed all nodes/claims into the active embedder's space.
-async function reembed() {
+async function reembed(ev) {
   const out = $("re_out"), btn = $("re_btn");
-  btn.disabled = true; show(out, "checking active embedder…", true);
+  const full = !!(ev && ev.shiftKey); // Shift-click = destructive full rebuild (embedder switch)
+  btn.disabled = true; show(out, "checking…", true);
   try {
-    // Dry-run first: confirm WHICH embedder is active and the row count, so we
-    // never silently overwrite real vectors with the offline placeholder.
+    // Dry-run first: confirm the active embedder + how many rows need embedding,
+    // so we never silently overwrite real vectors with the offline placeholder.
     const chk = await req("GET", "/admin/reembed");
     if (chk.status !== 200) { show(out, chk.body, false); return; }
-    const d = chk.body, total = (d.nodes || 0) + (d.claims || 0);
+    const d = chk.body, missing = (d.nodes || 0) + (d.claims || 0);
     const real = d.embedder && !String(d.embedder).startsWith("hashing");
-    const warn = real ? "" : "\n\n⚠ This is the OFFLINE placeholder embedder — set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY and redeploy first.";
-    if (!confirm(`Re-embed ${d.nodes} node(s) + ${d.claims} claim(s) with "${d.embedder}" (${d.dim}-dim)? This resizes the vector column and rebuilds the index.` + warn)) { show(out, "cancelled", true); return; }
-    show(out, `re-embedding ${total} row(s) with ${d.embedder}… (can take up to ~a minute; if it times out with an empty {}, the graph is large — re-run, or use the db:reembed CLI)`, true);
-    const { status, body } = await req("POST", "/admin/reembed", {});
+    const warn = real ? "" : "\n\n⚠ OFFLINE placeholder embedder — set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY and redeploy first.";
+    if (full) {
+      if (!confirm(`FULL rebuild: re-embed EVERY node & claim with "${d.embedder}" (${d.dim}-dim), resize the column and rebuild the index? Only needed when switching embedder.` + warn)) { show(out, "cancelled", true); return; }
+    } else {
+      if (missing === 0 && real) { show(out, `Nothing to do — all rows already embedded with ${d.embedder} (${d.dim}-dim).`, true); return; }
+      if (!confirm(`Embed ${d.nodes} new node(s) + ${d.claims} new claim(s) with "${d.embedder}" (${d.dim}-dim)?` + warn)) { show(out, "cancelled", true); return; }
+    }
+    show(out, `${full ? "full rebuild" : "embedding new rows"} with ${d.embedder}… (at 3 RPM this can take minutes; if it times out with {}, use the reembed Job)`, true);
+    const { status, body } = await req("POST", "/admin/reembed", full ? { mode: "full" } : {});
     if (status !== 200) { show(out, body, false); return; }
-    show(out, `Done — embedder ${body.embedder} (${body.dim}-dim), re-embedded ${body.written} row(s): ${body.nodes} node(s) + ${body.claims} claim(s).`, true);
+    show(out, `Done (${body.mode}) — embedder ${body.embedder} (${body.dim}-dim), embedded ${body.written} row(s): ${body.nodes} node(s) + ${body.claims} claim(s).`, true);
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }
 }
