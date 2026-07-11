@@ -8,8 +8,9 @@
 <style>
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
-  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
-  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  html, body { height: 100%; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; overflow: hidden; display: flex; flex-direction: column; }
+  header { flex: 0 0 auto; background: var(--header); color: #103d35; padding: 11px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
   header .brand { flex: 0 0 auto; display: flex; }
   header .brand img { width: 44px; height: 44px; display: block; }
   header h1 { margin: 0; font-size: 20px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
@@ -20,16 +21,40 @@
   button.secondary { background: #26332f; color: var(--fg); }
   code { color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); }
-  .graphsection { padding: 0 12px; margin: 0 0 18px; }
-  .graphwrap { position: relative; width: 100%; height: 82vh; min-height: 460px; background:#0f1b19; border:1px solid var(--line); border-radius:12px; overflow:hidden; touch-action:none; cursor:grab; }
+  /* graph fills the whole viewport below the header */
+  .graphwrap { position: relative; flex:1 1 auto; width:100%; min-height:0; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
   .graphwrap canvas { width:100%; height:100%; display:block; background:transparent; touch-action:none; }
   .goverlay { position:absolute; z-index:3; background:rgba(12,20,18,.82); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:10px; }
-  .gcontrols { top:12px; left:12px; padding:10px 12px; display:flex; flex-direction:column; gap:7px; align-items:flex-start; max-width:min(80vw,320px); }
-  .gcontrols .gctitle { font-weight:600; color:var(--fg); }
-  .gcontrols .gcheck { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-  .gcontrols .ghint { font-size:11px; color:var(--muted); line-height:1.4; }
-  .glegendpanel { left:12px; right:60px; bottom:12px; padding:8px 10px; max-height:26%; overflow:auto; }
+  .goverlay.soft { background:rgba(12,20,18,.34); }
+  /* search — floats top-left */
+  .gsearch { top:12px; left:12px; width:min(94vw,420px); padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .gsearch input { width:100%; background:#0f1b19; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
+  .gsearch input::placeholder { color:#6f817c; }
+  .gsearch .sbtns { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .gsearch .sbtns .hint { flex:1 1 100%; margin:0; }
+  .gsearch .results { max-height:min(52vh,520px); overflow:auto; }
+  .gsearch .results:empty { display:none; }
+  /* controls — zoom + redraw + context, bottom-right */
+  .gcontrols { right:12px; bottom:12px; padding:8px; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .gcontrols .gzoomrow { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .gcontrols .gzoomrow button { flex:1; height:32px; padding:0; background:transparent; border:0; color:var(--fg); font-size:17px; line-height:1; cursor:pointer; }
+  .gcontrols .gzoomrow button + button { border-left:1px solid var(--line); }
+  .gcontrols .gzoomrow button:hover { background:rgba(22,160,133,.18); color:var(--accent); }
+  .gcontrols .gctl { padding:6px 10px; font-size:13px; }
+  .gcontrols .gcheck { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  /* legend + how-to + disclaimer, bottom-left */
+  .glegendpanel { left:12px; bottom:12px; width:min(94vw,360px); max-height:46%; overflow:auto; padding:8px 30px 9px 10px; }
+  .glegendpanel .gphead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .glegendpanel .gptitle { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
   .glegendpanel .legend { margin-top:0; }
+  .glegendpanel .ghint { font-size:11px; color:var(--muted); line-height:1.45; margin-top:8px; }
+  .glegendpanel .gfoot { font-size:11px; color:var(--muted); margin-top:8px; border-top:1px solid var(--line); padding-top:6px; }
+  .glegendpanel .gfoot a { color:var(--accent); }
+  .glegendpanel.min .legend, .glegendpanel.min .ghint, .glegendpanel.min .gfoot { display:none; }
+  .glegendpanel.min .gphead { margin-bottom:0; }
+  .gmin { position:absolute; top:6px; right:7px; width:20px; height:20px; padding:0; line-height:1; background:rgba(12,20,18,.45); border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:14px; cursor:pointer; z-index:1; }
+  .gmin:hover { color:var(--fg); border-color:var(--accent); }
+  /* detail — top-right */
   .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:hidden; padding:0; font-size:13px; display:flex; flex-direction:column; }
   .gdetailpanel[hidden] { display:none; }   /* the explicit display:flex above would otherwise defeat the hidden attribute */
   .gdetailpanel .gdhead { flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:10px 12px 8px; border-bottom:1px solid var(--line); }
@@ -37,23 +62,6 @@
   .gdetailpanel .gdbody { flex:1 1 auto; overflow:auto; padding:10px 14px 14px; }
   .gdetailpanel .gclose { flex:0 0 auto; background:transparent; border:0; color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:0 2px; }
   .gdetailpanel .gclose:hover { color:var(--fg); }
-  /* the controls + legend panels: 20%-opaque so they barely obscure the graph, each minimisable */
-  .goverlay.soft { background:rgba(12,20,18,.2); }
-  .gcontrols, .glegendpanel { padding-right:30px; }
-  .gmin { position:absolute; top:6px; right:7px; width:20px; height:20px; padding:0; line-height:1; background:rgba(12,20,18,.35); border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:14px; cursor:pointer; z-index:1; }
-  .gmin:hover { color:var(--fg); border-color:var(--accent); }
-  .gcontrols.min { gap:0; }
-  .gcontrols.min > :not(.gctitle):not(.gmin) { display:none; }
-  .glegendpanel .gphead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-  .glegendpanel .gptitle { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
-  .glegendpanel.min { left:12px; right:auto; }
-  .glegendpanel.min .legend { display:none; }
-  .glegendpanel.min .gphead { margin-bottom:0; }
-  /* zoom buttons (replace scroll-to-zoom, which fought page scrolling) */
-  .gzoom { right:12px; bottom:12px; padding:0; overflow:hidden; display:flex; flex-direction:column; }
-  .gzoom button { width:34px; height:34px; padding:0; background:transparent; border:0; color:var(--fg); font-size:18px; line-height:1; cursor:pointer; display:block; }
-  .gzoom button + button { border-top:1px solid var(--line); }
-  .gzoom button:hover { background:rgba(22,160,133,.18); color:var(--accent); }
   .gerr { top:12px; left:50%; transform:translateX(-50%); padding:8px 12px; color:#ff8a8a; }
   svg text { font-size:10px; fill:#e6edeb; pointer-events:none; paint-order:stroke; stroke:#0f1b19; stroke-width:3px; stroke-linejoin:round; }
   .legend { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--muted); }
@@ -99,61 +107,50 @@
     <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/browse">browse claims</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
   </div>
 </header>
-<main>
-  <fieldset>
-    <legend>Ask &amp; search</legend>
-    <div class="srow">
-      <input id="q" placeholder="Ask in plain language — e.g. “what reduces the risk of falls in older adults”" onkeydown="if(event.key==='Enter')doAsk()" />
+<div class="graphwrap">
+  <canvas id="gcanvas"></canvas>
+
+  <!-- search — floats top-left -->
+  <div class="goverlay gsearch">
+    <input id="q" placeholder="Ask or search — e.g. “what reduces the risk of falls in older adults”" onkeydown="if(event.key==='Enter')doAsk()" />
+    <div class="sbtns">
       <button onclick="doAsk()">Ask</button>
       <button class="secondary" onclick="doSearch()">Search</button>
+      <span class="hint"><b>Ask</b> = a cited answer from the graph's evidence · <b>Search</b> = matching concepts &amp; claims. Click a result to open it.</span>
     </div>
-    <p class="hint" style="margin:6px 0 0"><b>Ask</b> for a cited answer grounded only in the graph's evidence · <b>Search</b> to list matching concepts &amp; claims. Click any result to open it in the graph below.</p>
     <div id="results" class="results"></div>
-  </fieldset>
+  </div>
 
-</main>
-
-<section class="graphsection">
-  <div class="graphwrap">
-    <canvas id="gcanvas"></canvas>
-    <div class="goverlay gcontrols soft">
-      <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
-      <div class="gctitle">Knowledge graph</div>
-      <button class="secondary" onclick="drawGraph()">Redraw / re-layout</button>
-      <label class="gcheck"><input type="checkbox" id="showContext" onchange="toggleContext()"> show context nodes (papers · populations · mechanisms)<span id="ctxprog" style="color:var(--accent)"></span></label>
-      <div class="ghint">drag nodes · +/− to zoom · drag background to pan · click a node for detail · colour = node type</div>
-    </div>
-    <div class="goverlay glegendpanel soft">
-      <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
-      <div class="gphead"><span class="gptitle">Legend</span></div>
-      <div id="glegend" class="legend"></div>
-    </div>
-    <div class="goverlay gzoom">
+  <!-- controls — zoom + redraw + context nodes, bottom-right -->
+  <div class="goverlay gcontrols">
+    <div class="gzoomrow">
       <button onclick="gzoom(1.25)" title="zoom in" aria-label="zoom in">+</button>
       <button onclick="gzoom(0.8)" title="zoom out" aria-label="zoom out">−</button>
       <button onclick="gzoomReset()" title="reset view" aria-label="reset view">⟲</button>
     </div>
-    <div class="goverlay gdetailpanel" id="detailpanel" hidden>
-      <div class="gdhead">
-        <div id="detailtitle" class="gdtitle"></div>
-        <button class="gclose" onclick="closeDetail()" title="close" aria-label="close">✕</button>
-      </div>
-      <div id="detail" class="gdbody hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
-    </div>
-    <div class="goverlay gerr" id="gdetail" hidden></div>
+    <button class="secondary gctl" onclick="drawGraph()">Redraw</button>
+    <label class="gcheck"><input type="checkbox" id="showContext" onchange="toggleContext()"> context nodes<span id="ctxprog" style="color:var(--accent)"></span></label>
   </div>
-</section>
 
-<main>
+  <!-- legend + how-to + disclaimer, bottom-left -->
+  <div class="goverlay glegendpanel soft">
+    <button class="gmin" onclick="toggleMin(this)" title="minimize" aria-label="minimize panel">−</button>
+    <div class="gphead"><span class="gptitle">Legend &amp; guide</span></div>
+    <div id="glegend" class="legend"></div>
+    <div class="ghint">drag nodes · +/− to zoom · drag background to pan · click a node for its claims &amp; evidence · colour = node type</div>
+    <div class="gfoot">Not medical advice — research &amp; education only. · <a href="/browse">browse</a> · <a href="/about">about</a> · <a href="/api">API</a> · <span class="fver" title="build version">{{VERSION}}</span></div>
+  </div>
 
-  <footer class="site-footer">
-    <div>An open, evidence-traceable knowledge graph for healthy aging · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
-    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
-    <div class="fnote">Not medical advice — a research and educational tool. Consult qualified professionals for health decisions.</div>
-    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) <span class="fver" title="build version" style="opacity:.55;font-size:11px">· {{VERSION}}</span></div>
-    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
-  </footer>
-</main>
+  <!-- node detail — top-right -->
+  <div class="goverlay gdetailpanel" id="detailpanel" hidden>
+    <div class="gdhead">
+      <div id="detailtitle" class="gdtitle"></div>
+      <button class="gclose" onclick="closeDetail()" title="close" aria-label="close">✕</button>
+    </div>
+    <div id="detail" class="gdbody hint">Click a node in the graph to see its claims, evidence, and neighbours.</div>
+  </div>
+  <div class="goverlay gerr" id="gdetail" hidden></div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
