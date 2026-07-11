@@ -52,12 +52,14 @@ Two data-source connectors run from `/admin` (token-gated) and write new claims
   `(offset, count)` so a long sweep is many short requests, not one that times out.
 - **Clinical guideline (bring-your-own)** (`POST /admin/harvest-guideline`) —
   extract recommendation claims from ONE specific guideline you already have,
-  including ones PubMed does not index. Provide the document as pasted **text**
-  (required for PDFs — no zero-dep PDF parsing) or an **HTML URL** we fetch and
-  strip; the source id is the guideline's **DOI** (preferred) or **URL** as a
-  CURIE. Each claim carries a **verbatim quote** and is typically a `recommends`
-  edge with `study_design: guideline`. This is the targeted supplement; the
-  PubMed guideline mode + canon are how you get broad coverage.
+  including ones PubMed does not index. Give it a **URL** and it fetches and
+  parses the document — **PDF** (via `unpdf`/pdf.js — the usual guideline format)
+  or **HTML** (article text extracted with `@mozilla/readability`, nav/footer
+  boilerplate dropped) — or paste the **text** directly. The source id is the
+  guideline's **DOI** (preferred) or **URL** as a CURIE. Each claim carries a
+  **verbatim quote** and is typically a `recommends` edge with
+  `study_design: guideline`. This is the targeted supplement; the PubMed
+  guideline mode + canon are how you get broad coverage.
 
 ## Ontology & standards mapping
 

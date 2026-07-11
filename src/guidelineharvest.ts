@@ -20,7 +20,7 @@ import { logRun } from "./topics.ts";
 import { loadGraph } from "./model.ts";
 import { NodeResolver } from "./resolve.ts";
 import { persistCandidate, validateCandidate, type Candidate } from "./curator.ts";
-import { stripTags } from "./sources.ts";
+import { fetchDocument } from "./docfetch.ts";
 
 const onto = loadGraph().ontology;
 
@@ -94,25 +94,6 @@ export async function extractFromGuideline(meta: GuidelineMeta, text: string, ex
   }));
 }
 
-/** Fetch an HTML guideline page and reduce it to readable text. Best-effort:
- *  returns "" on any failure (the caller then reports "no usable text"). */
-async function fetchGuidelineText(url: string): Promise<string> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25000);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" } });
-    if (!res.ok) return "";
-    const html = await res.text();
-    // Drop scripts/styles wholesale, then strip remaining tags to plain text.
-    const cleaned = html.replace(/<(script|style|noscript|head)[\s\S]*?<\/\1>/gi, " ");
-    return stripTags(cleaned).slice(0, 40000);
-  } catch {
-    return "";
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /** Normalize a URL / DOI into a CURIE source id the writer accepts. */
 export function guidelineSourceId({ url, doi }: { url?: string; doi?: string }): string | undefined {
   const d = (doi ?? "").trim();
@@ -130,14 +111,16 @@ export interface GuidelineHarvestSummary {
   created: number;     // new claims written
   merged: number;      // evidence added to an existing claim
   reused_nodes: number;
+  via: "pasted" | "pdf" | "html";  // how the document text was obtained
   skipped: Array<{ reason: string }>;
   claims: Array<{ claimId: string; merged: boolean }>;
 }
 
 /** Harvest one clinical guideline into grounded claims. Provide the document via
- *  `text` (paste — required for PDFs) OR `url` (an HTML page we fetch + strip);
- *  the source id is the DOI (preferred) or the URL as a CURIE. New claims are
- *  `unverified` → Reviewer gate. */
+ *  `text` (paste) OR `url` — a URL is FETCHED and parsed, handling both PDF (the
+ *  usual guideline format) and HTML (article text extracted, boilerplate
+ *  dropped). The source id is the DOI (preferred) or the URL as a CURIE. New
+ *  claims are `unverified` → Reviewer gate. */
 export async function harvestGuideline(
   { title, issuer, year, url, doi, text, model }:
   { title: string; issuer?: string; year?: string; url?: string; doi?: string; text?: string; model?: string },
@@ -148,8 +131,15 @@ export async function harvestGuideline(
   if (!source_id) throw new Error("a source is required: pass a doi or an http(s) url");
 
   let body = String(text ?? "").trim();
-  if (!body && url) body = await fetchGuidelineText(String(url).trim());
-  if (!body || body.length < 200) throw new Error("no usable guideline text (paste the text, or give a fetchable HTML url)");
+  let via: "pasted" | "pdf" | "html" = "pasted";
+  if (!body && url) {
+    const u = String(url).trim();
+    if (!/^https?:\/\//i.test(u)) throw new Error("to fetch a document, url must be http(s); otherwise paste the text");
+    const doc = await fetchDocument(u);   // handles PDF and HTML
+    body = doc.text;
+    via = doc.kind;
+  }
+  if (!body || body.length < 200) throw new Error("no usable guideline text (the fetched document was empty/too short — paste the text instead)");
 
   const useModel = model ?? envModelFor("curator");
   const sql = await getSql();
@@ -157,7 +147,7 @@ export async function harvestGuideline(
   const resolver = new NodeResolver(existing);
 
   const meta: GuidelineMeta = { title: t, issuer: issuer?.trim() || undefined, year: year?.trim() || undefined, source_id };
-  const summary: GuidelineHarvestSummary = { title: t, source_id, chars: body.length, proposed: 0, created: 0, merged: 0, reused_nodes: 0, skipped: [], claims: [] };
+  const summary: GuidelineHarvestSummary = { title: t, source_id, chars: body.length, via, proposed: 0, created: 0, merged: 0, reused_nodes: 0, skipped: [], claims: [] };
   const counters = { reused: 0 };
 
   const cands = await extractFromGuideline(meta, body, existing, useModel);

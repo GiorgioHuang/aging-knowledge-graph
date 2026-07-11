@@ -25,6 +25,9 @@
     "db:dedup": "node --experimental-strip-types scripts/dedup-claims.ts"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.1.0"
+    "@mozilla/readability": "^0.6.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "linkedom": "^0.18.13",
+    "unpdf": "^1.6.2"
   }
 }
