@@ -112,10 +112,17 @@
     <p class="hint">Search PubMed for recent higher-quality evidence (reviews · meta-analyses · RCTs in older adults) on a topic and extract claims grounded in each abstract. New claims are written <b>unverified</b> and go to the <a href="/review">review queue</a> — the source is a real PMID by construction.</p>
     <p>
       <input id="hv_q" placeholder="e.g. resistance training sarcopenia" style="width:320px;display:inline-block" />
-      <label class="hint">papers <input id="hv_n" type="number" value="5" min="1" max="15" style="width:56px;display:inline-block" /></label>
+      <label class="hint">items <input id="hv_n" type="number" value="5" min="1" max="15" style="width:56px;display:inline-block" /></label>
+      <label class="hint" style="margin-left:8px"><input type="checkbox" id="hv_guideline"> guidelines only (guideline[pt])</label>
       <button id="hv_btn" onclick="harvest()">Harvest</button>
     </p>
+    <p class="hint">Tick <b>guidelines only</b> to discover practice guidelines PubMed indexes on that topic (WHO / USPSTF / society guidelines), with a real PMID by construction — no need to know a specific document.</p>
+    <p>
+      <button id="cn_btn" onclick="harvestCanon()">Harvest landmark guidelines (canon)</button>
+      <span class="hint">— one click sweeps a curated list of well-known geriatrics guidelines via PubMed; runs in batches.</span>
+    </p>
     <div id="hv_out" class="out" hidden></div>
+    <div id="cn_out" class="out" hidden></div>
   </fieldset>
 
   <fieldset>
@@ -214,13 +221,38 @@ function openNode(id) { window.open("/#" + encodeURIComponent(id), "_blank", "no
 async function harvest() {
   const out = $("hv_out"), btn = $("hv_btn");
   const query = $("hv_q").value.trim(), retmax = Number($("hv_n").value) || 5;
+  const kind = $("hv_guideline").checked ? "guideline" : "evidence";
   if (!query) { show(out, "enter a search query", false); return; }
-  btn.disabled = true; show(out, "harvesting PubMed… (this can take a minute)", true);
+  btn.disabled = true; show(out, `harvesting PubMed ${kind === "guideline" ? "guidelines" : ""}… (this can take a minute)`, true);
   try {
-    const { status, body } = await req("POST", "/admin/harvest", { query, retmax });
+    const { status, body } = await req("POST", "/admin/harvest", { query, retmax, kind });
     if (status !== 200) { show(out, body, false); return; }
     const lines = (body.claims || []).map(c => `${c.merged ? "＋evidence" : "＋claim"} ${c.claimId}  (PMID:${c.pmid})`);
-    show(out, `Done — ${body.papers} paper(s), ${body.proposed} extracted, ${body.created} new claim(s), ${body.merged} evidence added, ${body.reused_nodes} node(s) reused.\n\n${lines.join("\n")}${body.skipped && body.skipped.length ? "\n\nskipped:\n" + body.skipped.map(s => `· ${s.pmid ? "PMID:" + s.pmid + " — " : ""}${s.reason}`).join("\n") : ""}`, true);
+    show(out, `Done (${body.kind || kind}) — ${body.papers} item(s), ${body.proposed} extracted, ${body.created} new claim(s), ${body.merged} evidence added, ${body.reused_nodes} node(s) reused.\n\n${lines.join("\n")}${body.skipped && body.skipped.length ? "\n\nskipped:\n" + body.skipped.map(s => `· ${s.pmid ? "PMID:" + s.pmid + " — " : ""}${s.reason}`).join("\n") : ""}`, true);
+    await reload();
+  } catch (e) { show(out, String((e && e.message) || e), false); }
+  finally { btn.disabled = false; }
+}
+
+// Sweep the curated landmark-guideline canon via PubMed, batched (the server
+// bounds each request by count, like map-codes) so a long sweep won't time out.
+async function harvestCanon() {
+  const out = $("cn_out"), btn = $("cn_btn");
+  btn.disabled = true;
+  let offset = 0, total = null, created = 0, merged = 0, proposed = 0, round = 0;
+  const done = [];
+  try {
+    do {
+      round++;
+      show(out, `sweeping canon… batch ${round}${total != null ? ` (${offset}/${total})` : ""} — ${created} new claim(s) so far`, true);
+      const { status, body } = await req("POST", "/admin/harvest-canon", { offset, count: 3, per: 1 });
+      if (status !== 200) { show(out, body, false); return; }
+      total = body.total; offset = body.nextOffset;
+      created += body.created; merged += body.merged; proposed += body.proposed;
+      (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.papers} guideline(s), ${e.created} new, ${e.merged} evidence`));
+      if (body.done) break;
+    } while (offset < total && round < 40);
+    show(out, `Done — swept ${total} landmark guideline topics, ${proposed} extracted, ${created} new claim(s), ${merged} evidence added.\n\n${done.join("\n")}`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }

@@ -29,7 +29,7 @@ import { graphClaimQuality } from "./quality.ts";
 import { saveAskLog, listAskLogs } from "./asklog.ts";
 import { processGapQuestions } from "./gaptopics.ts";
 import { mapUnmappedNodes, listUnmappedNodes, diagnoseNode } from "./codemap.ts";
-import { harvestPubmed } from "./pubmedharvest.ts";
+import { harvestPubmed, harvestGuidelineCanon } from "./pubmedharvest.ts";
 import { harvestGuideline } from "./guidelineharvest.ts";
 import { AGENTS, type AgentName } from "./models.ts";
 import * as Q from "./queries.ts";
@@ -316,12 +316,31 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
         const query = String(body.query ?? "").trim();
         if (!query) return send(res, 400, { error: "query is required" });
+        const kind = body.kind === "guideline" ? "guideline" : "evidence";
         try {
-          const out = await harvestPubmed({ query, retmax: Number(body.retmax) || 5 });
+          const out = await harvestPubmed({ query, retmax: Number(body.retmax) || 5, kind });
           if (state.reload) await state.reload();
           return send(res, 200, out);
         } catch (e) {
           return send(res, 502, { error: `harvest failed: ${(e as Error).message}` });
+        }
+      }
+
+      // ---- data-source connector: harvest the landmark-guideline canon (batched) ----
+      if (path === "/admin/harvest-canon" && req.method === "POST") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        if (!isLlmConfigured()) return send(res, 503, { error: "requires ANTHROPIC_API_KEY (the extractor)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        let body: Record<string, unknown> = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
+        try {
+          const out = await harvestGuidelineCanon({ offset: Number(body.offset) || 0, count: Number(body.count) || 3, per: Number(body.per) || 1 });
+          if (state.reload) await state.reload();
+          return send(res, 200, out);
+        } catch (e) {
+          return send(res, 502, { error: `canon harvest failed: ${(e as Error).message}` });
         }
       }
 
@@ -541,7 +560,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           ui: { home: "/", browse: "/browse", about: "/about" },
           management: { curation: "/admin", review: "/review" }, // token-gated (HTTP Basic), not public
           read: ["/health", "/queries", "/query/:name", "/nodes", "/nodes/:id", "/claims", "/ontology", "/review/queue", "/review/stats", "/agents/config", "/contact/messages", "/ask/log", "POST /mcp"],
-          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-guideline"],
+          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-canon", "POST /admin/harvest-guideline"],
         });
       }
       if (path === "/health") {

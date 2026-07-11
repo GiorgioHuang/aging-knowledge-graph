@@ -1,0 +1,20 @@
+{
+  "_comment": "Landmark healthy-aging / geriatrics practice guidelines, stored as PubMed SEARCH QUERIES (topic + issuer/instrument keywords), NOT as identifiers. The real PMID is resolved by PubMed's guideline[pt]-filtered search at harvest time (src/pubmedharvest.ts harvestGuidelineCanon) — we never hardcode or invent a PMID/DOI. Each entry surfaces a well-known guideline so the core canon is guaranteed coverage; edit/extend freely.",
+  "canon": [
+    { "label": "World falls guidelines (older adults)", "query": "world guidelines falls prevention management older adults" },
+    { "label": "AGS/BGS falls prevention", "query": "American Geriatrics Society falls prevention older persons" },
+    { "label": "WHO ICOPE — integrated care for older people", "query": "WHO integrated care for older people ICOPE" },
+    { "label": "WHO physical activity (older adults)", "query": "physical activity sedentary behaviour older adults" },
+    { "label": "Beers Criteria — inappropriate medications", "query": "Beers criteria potentially inappropriate medication use older adults" },
+    { "label": "STOPP/START prescribing criteria", "query": "STOPP START criteria potentially inappropriate prescribing older" },
+    { "label": "Sarcopenia consensus (EWGSOP)", "query": "sarcopenia consensus definition diagnosis older adults" },
+    { "label": "Frailty identification & management", "query": "frailty identification management older adults consensus" },
+    { "label": "Osteoporosis / fracture prevention", "query": "osteoporosis fracture prevention treatment older adults" },
+    { "label": "Malnutrition in geriatrics (ESPEN)", "query": "ESPEN clinical nutrition geriatrics malnutrition older adults" },
+    { "label": "Dementia risk reduction (WHO)", "query": "dementia risk reduction cognitive decline older adults" },
+    { "label": "Delirium prevention & management", "query": "delirium prevention diagnosis management older adults" },
+    { "label": "Polypharmacy / deprescribing", "query": "deprescribing polypharmacy older adults" },
+    { "label": "Urinary incontinence in older adults", "query": "urinary incontinence management older adults" },
+    { "label": "Depression in older adults", "query": "depression late life older adults treatment" }
+  ]
+}

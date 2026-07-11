@@ -37,16 +37,27 @@ Each ingested item becomes a **Paper/Research/Organization node** plus
 Two data-source connectors run from `/admin` (token-gated) and write new claims
 `unverified`, so the Reviewer still checks grounding:
 
-- **PubMed** (`POST /admin/harvest`) — search recent higher-quality evidence
-  (reviews / meta-analyses / RCTs in older adults) for a query and extract claims
-  **grounded in each abstract**; the source is a real PMID by construction.
-- **Clinical guideline** (`POST /admin/harvest-guideline`) — extract
-  recommendation claims from one practice guideline (WHO / CDC / Canadian
-  geriatric societies, etc.). Provide the document as pasted **text** (required
-  for PDFs — no zero-dep PDF parsing) or an **HTML URL** we fetch and strip;
-  the source id is the guideline's **DOI** (preferred) or **URL** as a CURIE.
-  Each claim carries a **verbatim quote** from the guideline and is typically a
-  `recommends` edge with `study_design: guideline`.
+- **PubMed** (`POST /admin/harvest`) — search recent higher-quality evidence for
+  a query and extract claims **grounded in each abstract**; the source is a real
+  PMID by construction. A `kind` flag chooses the publication-type filter:
+  `evidence` (reviews / meta-analyses / RCTs, the default) or **`guideline`**
+  (`guideline[pt]`) — the latter **discovers practice guidelines by topic** (WHO /
+  USPSTF / society guidelines that PubMed indexes), so the curator needn't know a
+  specific document, and coverage scales with search rather than manual entry.
+- **Landmark-guideline canon** (`POST /admin/harvest-canon`) — one action sweeps a
+  curated list of well-known geriatrics/healthy-aging guidelines
+  (`seed/guideline-canon.json`) through the PubMed guideline harvester. The canon
+  stores **search queries, not identifiers** — PubMed's `guideline[pt]` search
+  supplies the real PMID, so nothing is ever hardcoded or invented. Batched by
+  `(offset, count)` so a long sweep is many short requests, not one that times out.
+- **Clinical guideline (bring-your-own)** (`POST /admin/harvest-guideline`) —
+  extract recommendation claims from ONE specific guideline you already have,
+  including ones PubMed does not index. Provide the document as pasted **text**
+  (required for PDFs — no zero-dep PDF parsing) or an **HTML URL** we fetch and
+  strip; the source id is the guideline's **DOI** (preferred) or **URL** as a
+  CURIE. Each claim carries a **verbatim quote** and is typically a `recommends`
+  edge with `study_design: guideline`. This is the targeted supplement; the
+  PubMed guideline mode + canon are how you get broad coverage.
 
 ## Ontology & standards mapping
 

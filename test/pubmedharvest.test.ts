@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildExtractPrompt } from "../src/pubmedharvest.ts";
+import { buildExtractPrompt, guidelineCanon } from "../src/pubmedharvest.ts";
 
 test("buildExtractPrompt embeds the abstract, vocabulary, and existing nodes", () => {
   const meta = { source_id: "PMID:1", exists: true, title: "Exercise and falls", journal: "JAMA", year: "2020", study_design: "rct", abstract: "In older adults, exercise reduced the rate of falls by 20%." };
@@ -11,4 +11,14 @@ test("buildExtractPrompt embeds the abstract, vocabulary, and existing nodes", (
   assert.match(p, /relationship types:/);
   assert.match(p, /ga:exercise \(exercise\): Exercise/); // existing node offered for reuse
   assert.match(p, /raw JSON array/);
+});
+
+test("guidelineCanon loads landmark guideline queries (topics, not fabricated ids)", () => {
+  const canon = guidelineCanon();
+  assert.ok(canon.length >= 10, "a meaningful canon is present");
+  for (const e of canon) {
+    assert.ok(e.label && e.query, "each entry has a label and a query");
+    // The canon must NOT hardcode identifiers — PubMed resolves the real PMID.
+    assert.doesNotMatch(e.query, /\bPMID\b|\bDOI\b|\b\d{7,9}\b/, `${e.label} query carries no baked-in id`);
+  }
 });

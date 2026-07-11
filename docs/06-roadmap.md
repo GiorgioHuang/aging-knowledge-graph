@@ -81,13 +81,19 @@ don't skip ahead — later phases assume earlier foundations.
     GROUNDED in each abstract, with the real PMID as the source by construction
     (`src/pubmedharvest.ts`, `POST /admin/harvest`, `/admin` "Harvest" form).
     New claims are `unverified` → Reviewer gate.
-  - ✅ **Guideline connector** — extract recommendation claims from one clinical
-    practice guideline (WHO / CDC / Canadian geriatric societies) from pasted
-    text or a fetched HTML page, each grounded in a VERBATIM quote, with the
-    guideline's DOI/URL as the source CURIE (`src/guidelineharvest.ts`,
-    `POST /admin/harvest-guideline`, `/admin` "Harvest guideline" form). New
-    claims are `unverified` → Reviewer gate. See
-    [`05-data-sources.md`](05-data-sources.md).
+  - ✅ **Guideline connectors** — three complementary paths (all `unverified` →
+    Reviewer gate; see [`05-data-sources.md`](05-data-sources.md)):
+    (a) **PubMed guideline discovery** — the PubMed harvester's `guideline[pt]`
+    mode finds practice guidelines indexed for a topic (real PMID by
+    construction), so coverage scales by search, not manual entry;
+    (b) **landmark canon** (`POST /admin/harvest-canon`, `seed/guideline-canon.json`)
+    — one action sweeps a curated list of well-known geriatrics guidelines via
+    that PubMed mode; the canon holds SEARCH QUERIES, not ids, so no identifier is
+    ever invented;
+    (c) **bring-your-own guideline** (`src/guidelineharvest.ts`,
+    `POST /admin/harvest-guideline`) — extract from one specific guideline via
+    pasted text or a fetched HTML page (for documents PubMed doesn't index), each
+    grounded in a VERBATIM quote, with the guideline's DOI/URL as the source CURIE.
   - ✅ **Standards mapping** — attach open CURIEs to nodes by resolving each
     node's name against the authorities and accepting a code only on a verified
     label match (`src/codemap.ts`): MONDO/HP/GO/ChEBI/FoodOn (EBI OLS4), MeSH
