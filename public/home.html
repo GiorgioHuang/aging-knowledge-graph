@@ -9,7 +9,9 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  .pagefooter { flex:0 0 auto; text-align:center; padding:6px 12px; font-size:11px; color:var(--muted); background:var(--bg); border-top:1px solid var(--line); }
+  .pagefooter .fver { opacity:.75; }
   /* header floats over the full-viewport canvas as a translucent top bar */
   .gtopbar { position:absolute; top:0; left:0; right:0; z-index:4; display:flex; align-items:center; gap:12px; padding:8px 16px;
     background:linear-gradient(to bottom, rgba(8,14,13,.78), rgba(8,14,13,.26)); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
@@ -26,7 +28,7 @@
   code { color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); }
   /* graph fills the whole viewport below the header */
-  .graphwrap { position: relative; width:100%; height:100%; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
+  .graphwrap { position: relative; flex:1 1 auto; width:100%; min-height:0; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
   .graphwrap canvas { width:100%; height:100%; display:block; background:transparent; touch-action:none; }
   .goverlay { position:absolute; z-index:3; background:rgba(12,20,18,.82); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:10px; }
   .goverlay.soft { background:rgba(12,20,18,.34); }
@@ -145,7 +147,7 @@
     <div class="gphead"><span class="gptitle">Legend &amp; guide</span></div>
     <div id="glegend" class="legend"></div>
     <div class="ghint">drag nodes · +/− to zoom · drag background to pan · click a node for its claims &amp; evidence · colour = node type</div>
-    <div class="gfoot">Not medical advice — research &amp; education only. · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span> · <span class="fver" title="build version">{{VERSION}}</span></div>
+    <div class="gfoot">Not medical advice — research &amp; education only. · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span></div>
   </div>
 
   <!-- node detail — top-right -->
@@ -158,6 +160,8 @@
   </div>
   <div class="goverlay gerr" id="gdetail" hidden></div>
 </div>
+
+<footer class="pagefooter">© <span id="cpyr">2026</span> Healthy Aging Intelligence Lab (HAIL) · <span class="fver" title="build version">{{VERSION}}</span></footer>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -569,6 +573,7 @@ async function doAsk() {
     "Ask → a cited answer grounded only in the graph’s evidence",
     "Search → matching concepts & claims · click a result to open it",
   ];
+  const cy = $("cpyr"); if (cy) cy.textContent = new Date().getFullYear();
   let i = 0; el.placeholder = MSGS[0];
   setInterval(() => {
     if (el.value || document.activeElement === el) return;   // don't disturb typing
