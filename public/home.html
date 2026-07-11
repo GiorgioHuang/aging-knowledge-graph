@@ -30,14 +30,15 @@
   .graphwrap canvas { width:100%; height:100%; display:block; background:transparent; touch-action:none; }
   .goverlay { position:absolute; z-index:3; background:rgba(12,20,18,.82); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:10px; }
   .goverlay.soft { background:rgba(12,20,18,.34); }
-  /* search — floats top-left */
-  .gsearch { top:60px; left:12px; width:min(94vw,420px); padding:10px; display:flex; flex-direction:column; gap:8px; }
-  .gsearch input { width:100%; background:#0f1b19; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
-  .gsearch input::placeholder { color:#6f817c; }
-  .gsearch .sbtns { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .gsearch .sbtns .hint { flex:1 1 100%; margin:0; }
-  .gsearch .results { max-height:min(52vh,520px); overflow:auto; }
-  .gsearch .results:empty { display:none; }
+  /* search input + Ask/Search buttons live in the header, pushed top-right */
+  .gtopbar .gtitle { min-width:0; }
+  .gsearchbar { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .gsearchbar input { width:min(42vw,340px); background:rgba(15,27,25,.92); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 11px; font:inherit; }
+  .gsearchbar input::placeholder { color:#6f817c; }
+  .gsearchbar button { padding:8px 12px; }
+  /* search RESULTS float top-left, where the search box used to be */
+  .gresults { top:60px; left:12px; width:min(94vw,420px); max-height:min(72vh,660px); overflow:auto; padding:10px; }
+  .gresults .results { margin:0; }
   /* controls — zoom + redraw + context, bottom-right */
   .gcontrols { right:12px; bottom:12px; padding:8px; display:flex; flex-direction:column; gap:8px; align-items:stretch; }
   .gcontrols .gzoomrow { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
@@ -107,23 +108,22 @@
 <div class="graphwrap">
   <canvas id="gcanvas"></canvas>
 
-  <!-- header — floats over the canvas as a translucent top bar -->
+  <!-- header — floats over the canvas as a translucent top bar; search sits top-right -->
   <header class="gtopbar">
     <a class="brand" href="/" title="Healthy Aging Knowledge Lab"><img src="/logo-mark.svg" alt="Healthy Aging Knowledge Lab" /></a>
-    <div>
+    <div class="gtitle">
       <h1>Healthy Aging Knowledge</h1>
       <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/browse">browse claims</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
     </div>
-  </header>
-
-  <!-- search — floats top-left -->
-  <div class="goverlay gsearch">
-    <input id="q" placeholder="Ask or search — e.g. “what reduces the risk of falls in older adults”" onkeydown="if(event.key==='Enter')doAsk()" />
-    <div class="sbtns">
+    <div class="gsearchbar">
+      <input id="q" title="Ask = a cited answer from the graph · Search = matching concepts &amp; claims" placeholder="Ask or search — e.g. “what reduces the risk of falls”" onkeydown="if(event.key==='Enter')doAsk()" />
       <button onclick="doAsk()">Ask</button>
       <button class="secondary" onclick="doSearch()">Search</button>
-      <span class="hint"><b>Ask</b> = a cited answer from the graph's evidence · <b>Search</b> = matching concepts &amp; claims. Click a result to open it.</span>
     </div>
+  </header>
+
+  <!-- search results — float top-left, where the search box used to be -->
+  <div class="goverlay gresults" id="resultspanel" hidden>
     <div id="results" class="results"></div>
   </div>
 
@@ -484,7 +484,8 @@ function qualityBadge(q) {
 }
 async function doSearch() {
   const q = $("q").value.trim(), box = $("results");
-  if (!q) { box.innerHTML = ""; return; }
+  if (!q) { box.innerHTML = ""; $("resultspanel").hidden = true; return; }
+  $("resultspanel").hidden = false;
   box.innerHTML = '<div class="rhint">searching…</div>';
   try {
     const hits = await fetch("/query/search?k=12&q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : Promise.reject(r.status));
@@ -547,7 +548,8 @@ function renderAnswer(b) {
 }
 async function doAsk() {
   const q = $("q").value.trim(), box = $("results");
-  if (!q) { box.innerHTML = ""; return; }
+  if (!q) { box.innerHTML = ""; $("resultspanel").hidden = true; return; }
+  $("resultspanel").hidden = false;
   box.innerHTML = '<div class="rhint">thinking… (composing a cited answer from the graph)</div>';
   try {
     const r = await fetch("/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q }) });
