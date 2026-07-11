@@ -71,8 +71,10 @@ jobs:
           ENVVARS="COMMIT_SHA=${{ github.sha }}"
           if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
             SECRETS="$SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
-            ENVVARS="$ENVVARS,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}"
-            echo "::notice::EMBEDDINGS_API_KEY found — real embeddings on (provider ${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}). Run POST /admin/reembed once to migrate existing vectors."
+            # EMBEDDINGS_MAX_RPM paces requests to the provider's rate limit
+            # (Voyage free tier = 3 RPM) so the write path never trips 429.
+            ENVVARS="$ENVVARS,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }},EMBEDDINGS_MAX_RPM=${{ vars.EMBEDDINGS_MAX_RPM || '3' }}"
+            echo "::notice::EMBEDDINGS_API_KEY found — real embeddings on (provider ${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}, ${{ vars.EMBEDDINGS_MAX_RPM || '3' }} RPM). Migrate existing vectors with the reembed Job: gcloud run jobs execute ${{ vars.REEMBED_JOB || 'graceage-reembed' }} --region <REGION>."
           else
             echo "::notice::EMBEDDINGS_API_KEY secret not found — using the offline hashing embedder."
           fi
@@ -117,7 +119,7 @@ jobs:
           JOB_ENV="CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }}"
           if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
             JOB_SECRETS="$JOB_SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
-            JOB_ENV="$JOB_ENV,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }}"
+            JOB_ENV="$JOB_ENV,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }},EMBEDDINGS_MAX_RPM=${{ vars.EMBEDDINGS_MAX_RPM || '3' }}"
           fi
           gcloud run jobs deploy "$JOB" \
             --image "$IMAGE" \
@@ -128,6 +130,35 @@ jobs:
             --cpu 1 --memory 512Mi --max-retries 1 --task-timeout 1800s \
             --set-secrets "$JOB_SECRETS" \
             --set-env-vars "$JOB_ENV"
+
+      - name: Deploy reembed Job
+        # A one-off Cloud Run Job for the embedder cutover (scripts/reembed.ts
+        # --apply). Run as a Job, NOT the web button: at the Voyage free tier
+        # (3 RPM) a full re-embed takes minutes and would blow the ~100s HTTP
+        # gateway timeout. Reuses the service image (node on PATH + scripts/).
+        # Trigger it after switching embedder / to fix vectors:
+        #   gcloud run jobs execute graceage-reembed --region <REGION> --project <PROJECT>
+        # Skips cleanly until the EMBEDDINGS_API_KEY secret exists.
+        run: |
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          REGION="${{ vars.GCP_REGION || 'us-east1' }}"
+          JOB="${{ vars.REEMBED_JOB || 'graceage-reembed' }}"
+          SERVICE="${{ vars.CLOUD_RUN_SERVICE || 'graceage-knowledge' }}"
+          if ! gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
+            echo "::notice::EMBEDDINGS_API_KEY secret not found — skipping reembed Job deploy."
+            exit 0
+          fi
+          IMAGE=$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format='value(spec.template.spec.containers[0].image)' 2>/dev/null || true)
+          if [ -z "$IMAGE" ]; then echo "::warning::could not resolve service image; skipping reembed Job"; exit 0; fi
+          gcloud run jobs deploy "$JOB" \
+            --image "$IMAGE" \
+            --project "$PROJECT" \
+            --region "$REGION" \
+            --command node \
+            --args="--experimental-strip-types,scripts/reembed.ts,--apply" \
+            --cpu 1 --memory 512Mi --max-retries 0 --task-timeout 1800s \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest" \
+            --set-env-vars "EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }},EMBEDDINGS_MAX_RPM=${{ vars.EMBEDDINGS_MAX_RPM || '3' }}"
 
       - name: Show URL
         run: |

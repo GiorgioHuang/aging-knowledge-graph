@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { l2normalize, getEmbedder, HashingEmbedder } from "../src/embeddings.ts";
+import { l2normalize, getEmbedder, HashingEmbedder, embeddingIsPaced } from "../src/embeddings.ts";
 import { reembedAll } from "../src/reembed.ts";
 
 test("l2normalize returns a unit vector", () => {
@@ -18,6 +18,8 @@ test("getEmbedder defaults to the offline hashing embedder", () => {
     const e = getEmbedder();
     assert.ok(e instanceof HashingEmbedder);
     assert.equal(e.dim, 256);
+    // No EMBEDDINGS_MAX_RPM in the test env ⇒ pacing off ⇒ writes embed inline.
+    assert.equal(embeddingIsPaced(), false);
   } finally {
     if (saved.p !== undefined) process.env.EMBEDDINGS_PROVIDER = saved.p;
     if (saved.k !== undefined) process.env.EMBEDDINGS_API_KEY = saved.k;

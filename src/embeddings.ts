@@ -89,6 +89,29 @@ const PROVIDER_PRESETS: Record<string, { url: string; model: string; dim: number
   openai: { url: "https://api.openai.com/v1/embeddings", model: "text-embedding-3-small", dim: 1536 },
 };
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Provider-wide request pacing. Free tiers are strict (Voyage: 3 RPM / 10k TPM),
+// and EVERY writer shares one budget, so pace requests globally: at most one
+// every `EMBEDDINGS_MIN_INTERVAL_MS` (derived from EMBEDDINGS_MAX_RPM). A single
+// query embed goes out immediately; a burst (a harvest, a re-embed) is spaced so
+// it doesn't trip 429s. Unset ⇒ no artificial pacing (paid tiers).
+const MIN_INTERVAL = process.env.EMBEDDINGS_MIN_INTERVAL_MS
+  ? Number(process.env.EMBEDDINGS_MIN_INTERVAL_MS)
+  : (process.env.EMBEDDINGS_MAX_RPM ? Math.ceil(60000 / Number(process.env.EMBEDDINGS_MAX_RPM)) : 0);
+let paceChain: Promise<void> = Promise.resolve();
+let lastCallAt = 0;
+function pace(): Promise<void> {
+  if (!MIN_INTERVAL) return Promise.resolve();
+  const mine = paceChain.then(async () => {
+    const wait = MIN_INTERVAL - (Date.now() - lastCallAt);
+    if (wait > 0) await sleep(wait);
+    lastCallAt = Date.now();
+  });
+  paceChain = mine.catch(() => {}); // keep the chain alive regardless
+  return mine;
+}
+
 class RemoteEmbedder implements Embedder {
   id: string;
   dim: number;
@@ -114,8 +137,8 @@ class RemoteEmbedder implements Embedder {
   }
   private async call(input: string[]): Promise<number[][]> {
     let lastErr = "";
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 600 * attempt));
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await pace(); // respect the global request budget before every attempt
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 30000);
       try {
@@ -125,7 +148,15 @@ class RemoteEmbedder implements Embedder {
           body: JSON.stringify({ model: this.model, input }),
           signal: ctrl.signal,
         });
-        if (res.status === 429 || res.status >= 500) { lastErr = `status ${res.status}`; continue; }
+        if (res.status === 429) {
+          // Rate limited: wait the server's Retry-After (or ~a minute) then retry.
+          const ra = Number(res.headers.get("retry-after")) || 0;
+          lastErr = "rate limited (429)";
+          clearTimeout(timer);
+          await sleep(ra > 0 ? ra * 1000 : Math.min(60000, 5000 * (attempt + 1)));
+          continue;
+        }
+        if (res.status >= 500) { lastErr = `status ${res.status}`; continue; }
         if (!res.ok) throw new Error(`embeddings provider error ${res.status}`);
         const json = (await res.json()) as { data: { embedding: number[]; index?: number }[] };
         // Sort by index so the returned order matches the input order.
@@ -157,6 +188,14 @@ export function getEmbedder(): Embedder {
     return new RemoteEmbedder(url, key, model, dim);
   }
   return new HashingEmbedder();
+}
+
+/** True when the active provider is request-paced (a rate limit is configured).
+ *  Callers on the hot write path skip inline embedding then, deferring it to the
+ *  batch re-embed Job — otherwise a burst of writes would each block ~one
+ *  interval and stall (or time out) the request. */
+export function embeddingIsPaced(): boolean {
+  return MIN_INTERVAL > 0;
 }
 
 export function cosine(a: number[], b: number[]): number {

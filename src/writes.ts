@@ -5,7 +5,7 @@
 
 import { getSql } from "./db.ts";
 import { loadGraph } from "./model.ts";
-import { getEmbedder, nodeText } from "./embeddings.ts";
+import { getEmbedder, nodeText, embeddingIsPaced } from "./embeddings.ts";
 
 const onto = loadGraph().ontology;
 const CURIE = /^[A-Za-z0-9.]+:.+$/;
@@ -25,6 +25,10 @@ async function exists(table: "node" | "claim", id: string): Promise<boolean> {
 async function embed(id: string, ownerType: "node" | "claim", text: string): Promise<void> {
   try {
     const e = getEmbedder();
+    // Under a rate-limited provider (e.g. Voyage free tier, 3 RPM), embedding on
+    // every write would pace-block each row and stall bursty writes (a harvest).
+    // Skip inline; the reembed Job rebuilds all vectors. Offline/paid stays inline.
+    if (e.id.startsWith("remote:") && embeddingIsPaced()) return;
     const [v] = await e.embed([text]);
     const sql = await getSql();
     await sql.query(

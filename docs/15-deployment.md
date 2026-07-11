@@ -95,14 +95,29 @@ curl "$URL/query/search?q=falling%20in%20the%20elderly&k=5"   # pgvector-backed
      ```
      (rotate later with `gcloud secrets versions add EMBEDDINGS_API_KEY --data-file=-`).
      Provider defaults to `voyage`; set the repo **Variable** `EMBEDDINGS_PROVIDER=openai`
-     to switch. The deploy mounts the key + provider on **both** the service and the
-     agents Job (both write embeddings, so they must match).
+     to switch. The deploy mounts the key + provider on the service, the agents
+     Job, and the reembed Job (all embed, so they must match).
   2. Deploy (push to `main`), so the new revision has the key.
-  3. **Migrate existing vectors once:** the vector space + dimension change, so
-     hit **`POST /admin/reembed`** (or the `/admin` "Re-embed all" button, or
-     `npm run db:reembed -- --apply` with the secrets) to resize the column and
-     re-embed every node/claim. Query- and index-time use the same embedder, so
-     they can't drift.
+  3. **Rate limit** (`EMBEDDINGS_MAX_RPM`, repo Variable, default **3** for the
+     Voyage free tier): the embedder paces requests to this RPM and honors
+     `Retry-After`, so writes never 429-storm. Because pacing would stall bursty
+     writes, under a rate limit **inline embedding on writes is skipped** — the
+     reembed Job (below) is what (re)builds vectors. Raise `EMBEDDINGS_MAX_RPM`
+     (or unset it) once on a paid tier to re-enable inline embedding.
+  4. **Migrate / rebuild vectors with the reembed Job** (the vector space +
+     dimension change on switch; and new writes aren't embedded inline under a
+     rate limit). At 3 RPM a full rebuild takes minutes, so it runs as a Cloud
+     Run **Job**, not the web button (which would exceed the ~100s gateway
+     timeout):
+     ```bash
+     gcloud run jobs execute graceage-reembed --region <REGION> --project <PROJECT>
+     # watch: gcloud run jobs executions list --job graceage-reembed --region <REGION>
+     ```
+     Run it after switching embedder and after big harvests. It embeds every
+     node/claim (paced), resizes the column, and rebuilds the hnsw index; it's
+     idempotent, so re-running also recovers a table left empty by a timed-out
+     attempt. The `/admin` "Re-embed all" button does the same for small graphs.
+     Query- and index-time use the same embedder, so they can't drift.
 
 ## CI/CD (GitHub Actions)
 

@@ -159,8 +159,8 @@
     </p>
     <div id="mc_out" class="out" hidden></div>
     <div id="mu_out" hidden></div>
-    <p class="hint" style="margin-top:14px">Embeddings — when a real provider is configured (Voyage/OpenAI via env), re-embed every node &amp; claim into that vector space. Needed once after switching embedder; the vector column is resized and the ANN index rebuilt. Safe to re-run.</p>
-    <p><button id="re_btn" class="secondary" onclick="reembed()">Re-embed all (apply real vectors)</button></p>
+    <p class="hint" style="margin-top:14px">Embeddings — re-embed every node &amp; claim into the active provider's vector space (resizes the vector column, rebuilds the ANN index). Under a rate-limited provider (Voyage free tier = 3 RPM) new writes are <b>not</b> embedded inline; run this to (re)build vectors — including after a big harvest. <b>Large graphs:</b> at 3 RPM a full rebuild takes minutes and will exceed this page's ~100s timeout, so run the <b>reembed Cloud Run Job</b> instead: <code>gcloud run jobs execute graceage-reembed --region &lt;REGION&gt; --project &lt;PROJECT&gt;</code>. The button below is fine for small graphs / a quick top-up.</p>
+    <p><button id="re_btn" class="secondary" onclick="reembed()">Re-embed all (button — small graphs)</button></p>
     <div id="re_out" class="out" hidden></div>
   </fieldset>
 
