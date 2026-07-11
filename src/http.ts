@@ -373,6 +373,19 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         }
       }
 
+      // ---- embedder cutover: GET = dry-run (which embedder + how many rows) ----
+      if (path === "/admin/reembed" && req.method === "GET") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        try {
+          return send(res, 200, await reembedAll({ apply: false }));
+        } catch (e) {
+          return send(res, 502, { error: `reembed dry-run failed: ${(e as Error).message}` });
+        }
+      }
+
       // ---- re-embed everything with the active embedder (embedder cutover) ----
       if (path === "/admin/reembed" && req.method === "POST") {
         if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });

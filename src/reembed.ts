@@ -9,6 +9,17 @@ import { getSql } from "./db.ts";
 import { loadGraphAsync } from "./store.ts";
 import { getEmbedder, nodeText, claimText } from "./embeddings.ts";
 
+/** Run `fn` over items with at most `limit` in flight; results keep input order. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T, i: number) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  async function worker(): Promise<void> {
+    for (let i = next++; i < items.length; i = next++) out[i] = await fn(items[i], i);
+  }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, limit), items.length || 1) }, worker));
+  return out;
+}
+
 export interface ReembedSummary {
   embedder: string;   // active embedder id (e.g. "remote:voyage-3-lite" or "hashing-256")
   dim: number;
@@ -28,28 +39,45 @@ export async function reembedAll({ apply, batch = 96 }: { apply: boolean; batch?
   const summary: ReembedSummary = { embedder: embedder.id, dim: embedder.dim, nodes: nodes.length, claims: claims.length, written: 0, applied: false };
   if (!apply) return summary;
 
-  const sql = await getSql();
-  // Cutover (sequential; search is briefly degraded until the index is rebuilt).
-  await sql.query("DROP INDEX IF EXISTS embedding_vector_idx", []);
-  await sql.query("DELETE FROM embedding", []);
-  await sql.query(`ALTER TABLE embedding ALTER COLUMN vector TYPE vector(${embedder.dim})`, []);
-
   const items = [
     ...nodes.map((n) => ({ ownerType: "node" as const, id: n.id, text: nodeText(n) })),
     ...claims.map((c) => ({ ownerType: "claim" as const, id: c.id, text: claimText(g, c) })),
   ];
-  for (let i = 0; i < items.length; i += batch) {
-    const chunk = items.slice(i, i + batch);
-    const vecs = await embedder.embed(chunk.map((x) => x.text));
-    for (let j = 0; j < chunk.length; j++) {
-      const it = chunk[j];
-      await sql.query(
-        `INSERT INTO embedding (id, owner_type, owner_id, model, vector) VALUES ($1,$2,$3,$4,$5::vector)
-         ON CONFLICT (id) DO UPDATE SET vector = EXCLUDED.vector, model = EXCLUDED.model`,
-        [`emb-${it.ownerType}-${it.id}`, it.ownerType, it.id, embedder.id, `[${vecs[j].join(",")}]`],
-      );
+
+  // 1) Compute ALL vectors FIRST. If the provider fails (bad key, downtime), we
+  //    throw here — BEFORE any destructive DDL — so existing vectors stay intact
+  //    and the error surfaces cleanly instead of leaving an empty table. Batches
+  //    run with bounded concurrency so a large graph's embedding wall-clock stays
+  //    well under the gateway timeout (order preserved by index).
+  const groups: { ownerType: "node" | "claim"; id: string; text: string }[][] = [];
+  for (let i = 0; i < items.length; i += batch) groups.push(items.slice(i, i + batch));
+  const groupVecs = await mapLimit(groups, 4, (grp) => embedder.embed(grp.map((x) => x.text)));
+  const vectors: number[][] = groupVecs.flat();
+
+  // 2) Cutover. Vectors are in hand, so the DB window is short: drop the index,
+  //    clear, resize the column, bulk-insert (few round-trips, not one per row —
+  //    a per-row loop over a large graph blows the gateway timeout), rebuild.
+  const sql = await getSql();
+  await sql.query("DROP INDEX IF EXISTS embedding_vector_idx", []);
+  await sql.query("DELETE FROM embedding", []);
+  await sql.query(`ALTER TABLE embedding ALTER COLUMN vector TYPE vector(${embedder.dim})`, []);
+
+  const ROWS = 250; // rows per multi-row INSERT
+  for (let i = 0; i < items.length; i += ROWS) {
+    const slice = items.slice(i, i + ROWS);
+    const tuples: string[] = [];
+    const params: unknown[] = [];
+    slice.forEach((it, j) => {
+      const b = params.length;
+      tuples.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5}::vector)`);
+      params.push(`emb-${it.ownerType}-${it.id}`, it.ownerType, it.id, embedder.id, `[${vectors[i + j].join(",")}]`);
       summary.written++;
-    }
+    });
+    await sql.query(
+      `INSERT INTO embedding (id, owner_type, owner_id, model, vector) VALUES ${tuples.join(",")}
+       ON CONFLICT (id) DO UPDATE SET vector = EXCLUDED.vector, model = EXCLUDED.model`,
+      params,
+    );
   }
   await sql.query("CREATE INDEX embedding_vector_idx ON embedding USING hnsw (vector vector_cosine_ops)", []);
   summary.applied = true;

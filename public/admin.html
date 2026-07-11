@@ -284,9 +284,17 @@ async function harvestGuideline() {
 // Embedder cutover: re-embed all nodes/claims into the active embedder's space.
 async function reembed() {
   const out = $("re_out"), btn = $("re_btn");
-  if (!confirm("Re-embed every node and claim with the currently-configured embedder? This resizes the vector column and rebuilds the index.")) return;
-  btn.disabled = true; show(out, "re-embedding… (this can take a moment)", true);
+  btn.disabled = true; show(out, "checking active embedder…", true);
   try {
+    // Dry-run first: confirm WHICH embedder is active and the row count, so we
+    // never silently overwrite real vectors with the offline placeholder.
+    const chk = await req("GET", "/admin/reembed");
+    if (chk.status !== 200) { show(out, chk.body, false); return; }
+    const d = chk.body, total = (d.nodes || 0) + (d.claims || 0);
+    const real = d.embedder && !String(d.embedder).startsWith("hashing");
+    const warn = real ? "" : "\n\n⚠ This is the OFFLINE placeholder embedder — set EMBEDDINGS_PROVIDER + EMBEDDINGS_API_KEY and redeploy first.";
+    if (!confirm(`Re-embed ${d.nodes} node(s) + ${d.claims} claim(s) with "${d.embedder}" (${d.dim}-dim)? This resizes the vector column and rebuilds the index.` + warn)) { show(out, "cancelled", true); return; }
+    show(out, `re-embedding ${total} row(s) with ${d.embedder}… (can take up to ~a minute; if it times out with an empty {}, the graph is large — re-run, or use the db:reembed CLI)`, true);
     const { status, body } = await req("POST", "/admin/reembed", {});
     if (status !== 200) { show(out, body, false); return; }
     show(out, `Done — embedder ${body.embedder} (${body.dim}-dim), re-embedded ${body.written} row(s): ${body.nodes} node(s) + ${body.claims} claim(s).`, true);
