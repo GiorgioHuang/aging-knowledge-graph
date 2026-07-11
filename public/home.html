@@ -9,11 +9,15 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; overflow: hidden; display: flex; flex-direction: column; }
-  header { flex: 0 0 auto; background: var(--header); color: #103d35; padding: 11px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
-  header .brand { flex: 0 0 auto; display: flex; }
-  header .brand img { width: 44px; height: 44px; display: block; }
-  header h1 { margin: 0; font-size: 20px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; }
+  /* header floats over the full-viewport canvas as a translucent top bar */
+  .gtopbar { position:absolute; top:0; left:0; right:0; z-index:4; display:flex; align-items:center; gap:12px; padding:8px 16px;
+    background:linear-gradient(to bottom, rgba(8,14,13,.78), rgba(8,14,13,.26)); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
+    color:var(--fg); border-bottom:1px solid rgba(42,58,54,.5); }
+  .gtopbar .brand { flex:0 0 auto; display:flex; }
+  .gtopbar .brand img { width:34px; height:34px; display:block; }
+  .gtopbar h1 { margin:0; font-size:17px; color:var(--header); }
+  .gtopbar small { color:var(--muted); } .gtopbar a { color:var(--accent); }
   main { max-width: 1040px; margin: 0 auto; padding: 20px; }
   fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin: 0 0 18px; padding: 14px 16px; }
   legend { font-weight: 600; padding: 0 6px; }
@@ -22,12 +26,12 @@
   code { color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); }
   /* graph fills the whole viewport below the header */
-  .graphwrap { position: relative; flex:1 1 auto; width:100%; min-height:0; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
+  .graphwrap { position: relative; width:100%; height:100%; background:#0f1b19; overflow:hidden; touch-action:none; cursor:grab; }
   .graphwrap canvas { width:100%; height:100%; display:block; background:transparent; touch-action:none; }
   .goverlay { position:absolute; z-index:3; background:rgba(12,20,18,.82); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:10px; }
   .goverlay.soft { background:rgba(12,20,18,.34); }
   /* search — floats top-left */
-  .gsearch { top:12px; left:12px; width:min(94vw,420px); padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .gsearch { top:60px; left:12px; width:min(94vw,420px); padding:10px; display:flex; flex-direction:column; gap:8px; }
   .gsearch input { width:100%; background:#0f1b19; color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
   .gsearch input::placeholder { color:#6f817c; }
   .gsearch .sbtns { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -55,14 +59,14 @@
   .gmin { position:absolute; top:6px; right:7px; width:20px; height:20px; padding:0; line-height:1; background:rgba(12,20,18,.45); border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:14px; cursor:pointer; z-index:1; }
   .gmin:hover { color:var(--fg); border-color:var(--accent); }
   /* detail — top-right */
-  .gdetailpanel { top:12px; right:12px; width:min(92vw,360px); max-height:calc(100% - 24px); overflow:hidden; padding:0; font-size:13px; display:flex; flex-direction:column; }
+  .gdetailpanel { top:60px; right:12px; width:min(92vw,360px); max-height:calc(100% - 72px); overflow:hidden; padding:0; font-size:13px; display:flex; flex-direction:column; }
   .gdetailpanel[hidden] { display:none; }   /* the explicit display:flex above would otherwise defeat the hidden attribute */
   .gdetailpanel .gdhead { flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:10px 12px 8px; border-bottom:1px solid var(--line); }
   .gdetailpanel .gdtitle { min-width:0; }
   .gdetailpanel .gdbody { flex:1 1 auto; overflow:auto; padding:10px 14px 14px; }
   .gdetailpanel .gclose { flex:0 0 auto; background:transparent; border:0; color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:0 2px; }
   .gdetailpanel .gclose:hover { color:var(--fg); }
-  .gerr { top:12px; left:50%; transform:translateX(-50%); padding:8px 12px; color:#ff8a8a; }
+  .gerr { top:60px; left:50%; transform:translateX(-50%); padding:8px 12px; color:#ff8a8a; }
   svg text { font-size:10px; fill:#e6edeb; pointer-events:none; paint-order:stroke; stroke:#0f1b19; stroke-width:3px; stroke-linejoin:round; }
   .legend { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--muted); }
   .legend .lg { display:inline-flex; align-items:center; gap:5px; }
@@ -100,15 +104,17 @@
 </style>
 </head>
 <body>
-<header>
-  <a class="brand" href="/" title="Healthy Aging Knowledge Lab"><img src="/logo-mark.svg" alt="Healthy Aging Knowledge Lab" /></a>
-  <div>
-    <h1>Healthy Aging Knowledge</h1>
-    <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/browse">browse claims</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
-  </div>
-</header>
 <div class="graphwrap">
   <canvas id="gcanvas"></canvas>
+
+  <!-- header — floats over the canvas as a translucent top bar -->
+  <header class="gtopbar">
+    <a class="brand" href="/" title="Healthy Aging Knowledge Lab"><img src="/logo-mark.svg" alt="Healthy Aging Knowledge Lab" /></a>
+    <div>
+      <h1>Healthy Aging Knowledge</h1>
+      <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/browse">browse claims</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
+    </div>
+  </header>
 
   <!-- search — floats top-left -->
   <div class="goverlay gsearch">
