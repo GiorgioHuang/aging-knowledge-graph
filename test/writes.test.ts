@@ -87,7 +87,7 @@ test("/ serves the home graph explorer; /api lists read and write routes", async
   const home = await fetch(base + "/");
   assert.equal(home.status, 200);
   assert.match(home.headers.get("content-type") || "", /text\/html/);
-  assert.match(await home.text(), /Knowledge graph/);
+  assert.match(await home.text(), /Healthy Aging Knowledge/);
   const r = await (await fetch(base + "/api")).json();
   assert.ok(r.write.includes("POST /claims"));
 });
