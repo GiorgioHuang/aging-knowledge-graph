@@ -9,10 +9,10 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --err:#ff6b6b; --header:#eef3f1; }
   * { box-sizing: border-box; }
   body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
-  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: linear-gradient(to bottom, #0c1413, #0f1b19); border-bottom: 1px solid var(--line); color: var(--fg); }
   header .brand { flex: 0 0 auto; display: flex; }
-  header .brand img { width: 40px; height: 40px; display: block; }
-  header h1 { margin: 0; font-size: 18px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
+  header .brand img { width: 34px; height: 34px; display: block; }
+  header h1 { margin: 0; font-size: 17px; color: var(--header); } header small { color: var(--muted); } header a { color: var(--accent); }
   main { max-width: 920px; margin: 0 auto; padding: 20px; }
   .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
   select, input { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background:var(--surface); color:var(--fg); }
@@ -33,10 +33,9 @@
   .pager button { background:var(--surface); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font:inherit; cursor:pointer; }
   .pager button:disabled { opacity:.45; cursor:default; }
   .pager .pinfo { font-size:13px; color:var(--muted); }
-  .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
+  .site-footer { color: var(--muted); font-size: 11px; text-align: center; border-top: 1px solid var(--line); margin-top: 28px; padding: 10px 14px; }
   .site-footer a { color: var(--accent); }
-  .site-footer .fnav { margin: 6px 0; }
-  .site-footer .fnote { font-size: 12px; opacity: .85; }
+  .site-footer .fver { opacity: .8; }
 </style>
 </head>
 <body>
@@ -44,7 +43,7 @@
   <a class="brand" href="/" title="Healthy Aging Knowledge Lab"><img src="/logo-mark.svg" alt="Healthy Aging Knowledge Lab" /></a>
   <div>
     <h1>Healthy Aging Knowledge — Browse claims</h1>
-    <small>Read-only · clickable citations · <a href="/">home</a> · <a href="/about">about</a> · backend: <span id="backend">…</span></small>
+    <small>Read-only, evidence-traceable claims · <a href="/">home</a></small>
   </div>
 </header>
 <main>
@@ -63,14 +62,10 @@
   <div id="list"><p class="empty">Loading…</p></div>
   <div id="pager" class="pager"></div>
 
-  <footer class="site-footer">
-    <div>An open, evidence-traceable knowledge graph for healthy aging · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
-    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
-    <div class="fnote">Not medical advice — a research and educational tool. Consult qualified professionals for health decisions.</div>
-    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) <span class="fver" title="build version" style="opacity:.55;font-size:11px">· {{VERSION}}</span></div>
-    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
-  </footer>
 </main>
+<footer class="site-footer">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span> · <span class="fver" title="build version">{{VERSION}}</span>
+  <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
+</footer>
 <script>
 const $ = (s) => document.getElementById(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));

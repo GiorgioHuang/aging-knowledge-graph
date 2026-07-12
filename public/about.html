@@ -9,10 +9,10 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
   body { font: 15px/1.6 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
-  header { background: var(--header); color: #103d35; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #d7e2de; }
+  header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: linear-gradient(to bottom, #0c1413, #0f1b19); border-bottom: 1px solid var(--line); color: var(--fg); }
   header .brand { flex: 0 0 auto; display: flex; }
-  header .brand img { width: 44px; height: 44px; display: block; }
-  header h1 { margin: 0; font-size: 20px; } header small { color:#4a5d58; } header a { color:#0a6e5c; }
+  header .brand img { width: 34px; height: 34px; display: block; }
+  header h1 { margin: 0; font-size: 17px; color: var(--header); } header small { color: var(--muted); } header a { color: var(--accent); }
   main { max-width: 820px; margin: 0 auto; padding: 24px 20px 60px; }
   h2 { font-size: 20px; margin: 30px 0 10px; }
   h2:first-of-type { margin-top: 8px; }
@@ -45,9 +45,9 @@
   .cform button[disabled] { opacity:.6; cursor:default; }
   .cmsg { font-size:13px; } .cmsg.ok { color:var(--accent); } .cmsg.err { color:#ff8a8a; }
   .disclaimer { background:#241f12; border:1px solid #4a3f1c; color:#ecd9a6; border-radius:10px; padding:14px 18px; margin: 18px 0; font-size:14px; }
-  .site-footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); margin-top: 34px; padding: 16px 0 28px; text-align: center; }
+  .site-footer { color: var(--muted); font-size: 11px; text-align: center; border-top: 1px solid var(--line); margin-top: 28px; padding: 10px 14px; }
   .site-footer a { color: var(--accent); }
-  .site-footer .fnav { margin: 6px 0; }
+  .site-footer .fver { opacity: .8; }
 </style>
 </head>
 <body>
@@ -55,7 +55,7 @@
   <a class="brand" href="/" title="Healthy Aging Knowledge Lab"><img src="/logo-mark.svg" alt="Healthy Aging Knowledge Lab" /></a>
   <div>
     <h1>Healthy Aging Knowledge — About</h1>
-    <small><a href="/">home</a> · <a href="/browse">browse claims</a> · backend: <span id="backend">…</span></small>
+    <small>An open, evidence-traceable knowledge graph for healthy aging · <a href="/">home</a> · <a href="/browse">browse claims</a></small>
   </div>
 </header>
 <main>
@@ -117,13 +117,10 @@
     <b>Not medical advice.</b> Healthy Aging Knowledge is a research and educational tool. Claims are machine-proposed and machine- or human-reviewed, and may be incomplete, out of date, or wrong. Always consult qualified healthcare professionals for decisions about your health.
   </div>
 
-  <footer class="site-footer">
-    <div>An open, evidence-traceable knowledge graph for healthy aging · Part of the <b>Healthy Aging Intelligence Lab (HAIL)</b></div>
-    <div class="fnav"><a href="/">home</a> · <a href="/browse">browse</a> · <a href="/about">about</a> · <a href="/api">API</a> · <a href="https://github.com/GiorgioHuang" target="_blank" rel="noopener">GitHub</a></div>
-    <div class="fcopy">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) <span class="fver" title="build version" style="opacity:.55;font-size:11px">· {{VERSION}}</span></div>
-    <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
-  </footer>
 </main>
+<footer class="site-footer">© <span id="cpyr"></span> Healthy Aging Intelligence Lab (HAIL) · <a href="/about">about</a> · <a href="/api">API</a> · backend: <span id="backend">…</span> · <span class="fver" title="build version">{{VERSION}}</span>
+  <script>document.getElementById("cpyr").textContent = new Date().getFullYear();</script>
+</footer>
 <script>
   fetch("/health").then(r => r.json()).then(h => {
     document.getElementById("backend").textContent = h.backend;
