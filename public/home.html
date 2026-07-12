@@ -53,6 +53,8 @@
   .gcontrols .gzoomrow button:hover { background:rgba(22,160,133,.18); color:var(--accent); }
   .gcontrols .gctl { padding:6px 10px; font-size:13px; }
   .gcontrols .gcheck { font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .gcontrols .gcount { font-size:11px; color:var(--muted); text-align:center; white-space:nowrap; }
+  .gcontrols .gcount b { color:var(--fg); font-weight:600; }
   /* legend + how-to + disclaimer, bottom-left */
   .glegendpanel { left:12px; bottom:42px; width:min(94vw,360px); max-height:calc(46% - 30px); overflow:auto; padding:8px 30px 9px 10px; }
   .glegendpanel .gphead { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
@@ -135,6 +137,7 @@
 
   <!-- controls — zoom + redraw + context nodes, bottom-right -->
   <div class="goverlay gcontrols">
+    <div id="gcount" class="gcount"></div>
     <div class="gzoomrow">
       <button onclick="gzoom(1.25)" title="zoom in" aria-label="zoom in">+</button>
       <button onclick="gzoom(0.8)" title="zoom out" aria-label="zoom out">−</button>
@@ -218,6 +221,10 @@ function drawGraph() {
   edges.forEach(e => { nbr[e.source].add(e.target); nbr[e.target].add(e.source); edgeKeys.add(e.source + "|" + e.target); });
   const setR = (n) => { n.r = 6 + Math.min(8, nbr[n.id].size); };
   nodes.forEach(setR);
+
+  // node count for the controls panel: core (claims graph) vs total with context
+  const gc = $("gcount");
+  if (gc) { const c = nodes.length, t = GRAPH.nodes.length; gc.innerHTML = `<b>${c}</b> node${c !== 1 ? "s" : ""} · <b>${t}</b> with context`; }
 
   const view = { tx: 0, ty: 0, k: 1 };
   let alpha = 1, alphaFloor = 0, dragging = null, hoverId = null, selId = null, running = false;
