@@ -9,7 +9,7 @@
   :root { --fg:#e6edeb; --muted:#9fb0ab; --line:#2a3a36; --accent:#16a085; --bg:#0e1a18; --surface:#16221f; --header:#eef3f1; }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; overflow: hidden; }
+  body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--fg); background: var(--bg); margin: 0; height: 100vh; height: 100dvh; overflow: hidden; }
   /* footer floats over the canvas as a translucent bottom bar (mirrors the header) */
   .pagefooter { position:absolute; left:0; right:0; bottom:0; z-index:4; text-align:center; padding:6px 14px; font-size:11px; color:var(--muted);
     background:linear-gradient(to top, rgba(8,14,13,.8), rgba(8,14,13,.26)); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border-top:1px solid rgba(42,58,54,.5); }
