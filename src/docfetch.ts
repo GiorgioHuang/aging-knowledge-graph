@@ -41,7 +41,7 @@ export async function fetchDocument(url: string, ms = 30000): Promise<FetchedDoc
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" } });
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.cc)" } });
     if (!res.ok) throw new Error(`fetch ${res.status}`);
     const ctype = (res.headers.get("content-type") || "").toLowerCase();
     const isPdf = ctype.includes("pdf") || /\.pdf(\?|#|$)/i.test(url);

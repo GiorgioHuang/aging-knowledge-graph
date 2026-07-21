@@ -173,7 +173,7 @@ deploy workflow, so DB credentials never live in CI.
 ## Custom domain (Cloudflare)
 
 Map a custom domain to the service with a Google-managed certificate, using
-Cloudflare for DNS. **Live:** the service is deployed at **https://ack.icareu.ca**
+Cloudflare for DNS. **Live:** the service is deployed at **https://ack.icareu.cc**
 (Cloudflare → Cloud Run → Neon).
 
 ```bash

@@ -21,7 +21,7 @@ export async function resolveDoi(doi: string): Promise<boolean> {
   if (!id) return false;
   try {
     const res = await fetch(`https://api.crossref.org/works/${encodeURIComponent(id)}/agency`, {
-      headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)" },
+      headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.cc)" },
     });
     return res.ok;
   } catch {

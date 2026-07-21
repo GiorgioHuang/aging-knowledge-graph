@@ -87,7 +87,7 @@ gcloud run services update "$SVC" --region "$REGION" --project "$PROJECT" \
 gcloud secrets versions access latest --secret CURATOR_TOKEN --project "$PROJECT"
 ```
 
-Then open `https://ack.icareu.ca/admin`, paste the token, and add/edit/delete
+Then open `https://ack.icareu.cc/admin`, paste the token, and add/edit/delete
 nodes & claims. The page also renders a **force-directed graph** (zero-dependency
 SVG, from `GET /graph`) — click a node to highlight its links.
 

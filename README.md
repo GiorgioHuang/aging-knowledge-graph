@@ -2,7 +2,7 @@
 
 > **Building AI for Aging Well.**
 > An open, evidence-traceable knowledge graph for healthy aging.
-> **Live:** https://ack.icareu.ca
+> **Live:** https://ack.icareu.cc
 
 **Healthy Aging Knowledge** (this repository, `aging-knowledge-graph`) is the
 **knowledge / "Core"** pillar of the **GraceAge** research ecosystem. Its goal
@@ -60,7 +60,7 @@ over the next ~3 years.
 ## Status / 当前状态
 
 - **Stage:** **Live.** Deployed on Cloud Run behind a custom domain, backed by
-  Neon (Postgres + pgvector): **https://ack.icareu.ca** (e.g. `/health`,
+  Neon (Postgres + pgvector): **https://ack.icareu.cc** (e.g. `/health`,
   `/query/search?q=…`, `POST /mcp`). Postgres schema, curated seed graph (two
   evidence-backed cross-domain chains), validator, **REST + MCP** surface,
   **natural-language search**, and a **token-gated write path + `/admin` curation

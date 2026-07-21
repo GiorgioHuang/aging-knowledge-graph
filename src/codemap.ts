@@ -248,7 +248,7 @@ async function jget(url: string): Promise<unknown> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000); // bounded so a slow authority can't blow the request budget, but generous enough to avoid flaky misses
     try {
-      const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.ca)", accept: "application/json" } });
+      const res = await fetch(url, { signal: ctrl.signal, headers: { "user-agent": "HealthyAgingKnowledge/1.0 (https://ack.icareu.cc)", accept: "application/json" } });
       if (res.status === 429 || res.status >= 500) { lastErr = `${new URL(url).host} ${res.status}`; continue; }
       if (!res.ok) { DIAG.lookupFail++; DIAG.lastError = `lookup: ${new URL(url).host} ${res.status}`; return null; }
       return await res.json();
