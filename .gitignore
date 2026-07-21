@@ -1,6 +1,13 @@
 node_modules/
 *.log
 .DS_Store
+# never commit secrets / local env
+.env
+.env.*
+*.pem
+*.key
+service-account*.json
+gha-creds-*.json
 # generated from seed/graph.json by `npm run seed:sql`
 db/seed.generated.sql
 # ephemeral postgres data (verify-postgres.sh uses a tmp dir, but just in case)

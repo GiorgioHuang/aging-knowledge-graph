@@ -8,8 +8,8 @@
 #     bash scripts/setup-gcp.sh
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:-giorgio-h}"
-PROJECT_NUMBER="${PROJECT_NUMBER:-535650065054}"
+PROJECT_ID="${PROJECT_ID:?set PROJECT_ID to your GCP project id}"
+PROJECT_NUMBER="${PROJECT_NUMBER:-$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')}"
 REPO="${REPO:-giorgiohuang/aging-knowledge-graph}"
 REGION="${REGION:-us-east1}"
 POOL="${POOL:-github-pool}"

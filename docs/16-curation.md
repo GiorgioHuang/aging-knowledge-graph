@@ -70,8 +70,8 @@ Writes need a `CURATOR_TOKEN` secret mounted on Cloud Run. The deploy uses
 `--update-secrets` (not `--set-secrets`), so this survives future deploys.
 
 ```bash
-PROJECT=giorgio-h; REGION=us-east1; SVC=graceage-knowledge
-RUNTIME_SA=535650065054-compute@developer.gserviceaccount.com
+PROJECT=<your-gcp-project>; REGION=us-east1; SVC=graceage-knowledge
+RUNTIME_SA=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')-compute@developer.gserviceaccount.com
 
 # 1) create a strong token secret
 printf '%s' "$(openssl rand -hex 24)" | gcloud secrets create CURATOR_TOKEN \

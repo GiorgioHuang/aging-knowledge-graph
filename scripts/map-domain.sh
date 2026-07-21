@@ -10,7 +10,7 @@ set -euo pipefail
 DOMAIN="${1:?usage: map-domain.sh <hostname e.g. api.yourdomain.com>}"
 SERVICE="${SERVICE:-graceage-knowledge}"
 REGION="${REGION:-us-east1}"
-PROJECT="${PROJECT:-giorgio-h}"
+PROJECT="${PROJECT:?set PROJECT to your GCP project id}"
 
 echo "== creating domain mapping ${DOMAIN} -> ${SERVICE} (${REGION}) =="
 gcloud beta run domain-mappings create \
