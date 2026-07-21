@@ -10,54 +10,42 @@ is to build the world's best **open knowledge graph about aging well** — a
 connected, machine-readable, evidence-backed map of everything we know about
 gerontology, health informatics, and healthy aging.
 
-The repository began as **founding documents** (the Product Charter and
-specification) and is now in **V0**: a Postgres schema, a curated, evidence-backed
-seed graph, and a queryable API + validator — all verified. We defined *what to
-build and why* before *how*, so an AI agent can develop the platform continuously
-over the next ~3 years.
+The repository began as **founding documents** (a Product Charter and
+specification) and is now a **live service**: a Postgres + pgvector backend, a
+curated, evidence-backed seed graph, a queryable **REST + MCP** API with
+natural-language search, a token-gated write path with a curation UI, and
+continuously-running Curator/Reviewer agents. *What to build and why* was defined
+before *how*, so the platform can grow incrementally over a multi-year roadmap.
 
 ---
 
-## 中文摘要
+## Documentation map
 
-**Healthy Aging Knowledge** 是 **GraceAge** 研究生态系统中的 **知识 / 核心（Core）** 支柱。
-目标是构建一个关于"健康老龄化（Aging Well）"的、世界一流的、开放的 **知识图谱**——
-一张连接的、机器可读的、有证据支撑的知识地图，涵盖老年学、健康信息学与健康老龄化。
-
-本仓库始于**奠基性文档**（产品宪章与规格说明），现已进入 **V0**：Postgres schema、
-一份有证据支撑的策展种子图谱、以及可查询的 API 与校验器，且均已验证。先定义"做什么、为什么"，
-再谈"怎么做"，以便 AI 编程代理在未来约三年里持续开发该平台。Node ≥ 22.18 直接运行；
-离线路径零安装，唯一依赖（Neon 驱动）仅在设置 `DATABASE_URL` 时懒加载（见下方 Quickstart）。
-
----
-
-## Documentation map / 文档导航
-
-| Doc | Purpose | 用途 |
-|-----|---------|------|
-| [`docs/00-charter.md`](docs/00-charter.md) | Product Charter: vision, users, philosophy, success, non-goals | 产品宪章：愿景、用户、理念、成功标准、非目标 |
-| [`docs/01-ecosystem-context.md`](docs/01-ecosystem-context.md) | The GraceAge ecosystem and how Knowledge connects | GraceAge 生态系统及知识图谱的连接方式 |
-| [`docs/02-knowledge-model.md`](docs/02-knowledge-model.md) | The ontology: domains, node types, relationships, evidence | 本体模型：领域、节点类型、关系、证据 |
-| [`docs/03-architecture.md`](docs/03-architecture.md) | Tech stack, data model, API-first design | 技术栈、数据模型、API 优先设计 |
-| [`docs/04-ai-capabilities.md`](docs/04-ai-capabilities.md) | Extraction, linking, evidence scoring, search, RAG | 抽取、链接、证据评分、搜索、RAG |
-| [`docs/05-data-sources.md`](docs/05-data-sources.md) | PubMed/WHO/CDC ingestion; FHIR & SNOMED CT mapping | 数据源接入；FHIR 与 SNOMED CT 映射 |
-| [`docs/06-roadmap.md`](docs/06-roadmap.md) | Phased V0→V3 multi-year roadmap | 分阶段的多年路线图（V0→V3） |
-| [`docs/07-development-principles.md`](docs/07-development-principles.md) | The "constitution" for contributors and the AI agent | 贡献者与 AI 代理的"开发宪法" |
-| [`docs/08-competency-questions.md`](docs/08-competency-questions.md) | The questions the graph must answer (validates the model) | 图谱必须能回答的问题（用于验证模型） |
-| [`docs/09-domain-skeleton.md`](docs/09-domain-skeleton.md) | Broad, shallow skeleton across all 15 domains | 覆盖全部 15 个领域的浅层骨架 |
-| [`docs/10-standards-alignment.md`](docs/10-standards-alignment.md) | Open-first mapping of nodes to standard vocabularies | 节点到标准词表的开放优先映射 |
-| [`docs/11-worked-example.md`](docs/11-worked-example.md) | Curated, cited falls/exercise chain — end-to-end model test | 已策展、可引用的跌倒/运动链——端到端模型测试 |
-| [`docs/12-worked-example-social.md`](docs/12-worked-example-social.md) | Curated, cited social/loneliness/depression chain — model test | 已策展、可引用的社交/孤独/抑郁链——模型测试 |
-| [`docs/13-api.md`](docs/13-api.md) | REST + MCP surface (how to query the graph) | REST 与 MCP 接口（如何查询图谱） |
-| [`docs/14-semantic-search.md`](docs/14-semantic-search.md) | Semantic search + Neon/pgvector backend | 语义检索 + Neon/pgvector 后端 |
-| [`docs/15-deployment.md`](docs/15-deployment.md) | Deploy to Cloud Run (calling Neon) | 部署到 Cloud Run（调用 Neon） |
-| [`docs/16-curation.md`](docs/16-curation.md) | Write path & curation UI (token-gated) | 写路径与策展界面（令牌保护） |
-| [`docs/17-agents.md`](docs/17-agents.md) | Curator + Reviewer agents (continuous, cited expansion) | 扩充与审核智能体（持续、可引用） |
-| [`docs/glossary.md`](docs/glossary.md) | Bilingual glossary of key terms | 关键术语双语词汇表 |
+| Doc | Purpose |
+|-----|---------|
+| [`docs/00-charter.md`](docs/00-charter.md) | Product Charter: vision, users, philosophy, success, non-goals |
+| [`docs/01-ecosystem-context.md`](docs/01-ecosystem-context.md) | The GraceAge ecosystem and how Knowledge connects |
+| [`docs/02-knowledge-model.md`](docs/02-knowledge-model.md) | The ontology: domains, node types, relationships, evidence |
+| [`docs/03-architecture.md`](docs/03-architecture.md) | Tech stack, data model, API-first design |
+| [`docs/04-ai-capabilities.md`](docs/04-ai-capabilities.md) | Extraction, linking, evidence scoring, search, RAG |
+| [`docs/05-data-sources.md`](docs/05-data-sources.md) | PubMed/WHO/CDC ingestion; FHIR & SNOMED CT mapping |
+| [`docs/06-roadmap.md`](docs/06-roadmap.md) | Phased V0→V3 multi-year roadmap |
+| [`docs/07-development-principles.md`](docs/07-development-principles.md) | The "constitution" for contributors |
+| [`docs/08-competency-questions.md`](docs/08-competency-questions.md) | The questions the graph must answer (validates the model) |
+| [`docs/09-domain-skeleton.md`](docs/09-domain-skeleton.md) | Broad, shallow skeleton across all 15 domains |
+| [`docs/10-standards-alignment.md`](docs/10-standards-alignment.md) | Open-first mapping of nodes to standard vocabularies |
+| [`docs/11-worked-example.md`](docs/11-worked-example.md) | Curated, cited falls/exercise chain — end-to-end model test |
+| [`docs/12-worked-example-social.md`](docs/12-worked-example-social.md) | Curated, cited social/loneliness/depression chain — model test |
+| [`docs/13-api.md`](docs/13-api.md) | REST + MCP surface (how to query the graph) |
+| [`docs/14-semantic-search.md`](docs/14-semantic-search.md) | Semantic search + Neon/pgvector backend |
+| [`docs/15-deployment.md`](docs/15-deployment.md) | Deploy to Cloud Run (calling Neon) |
+| [`docs/16-curation.md`](docs/16-curation.md) | Write path & curation UI (token-gated) |
+| [`docs/17-agents.md`](docs/17-agents.md) | Curator + Reviewer agents (continuous, cited expansion) |
+| [`docs/glossary.md`](docs/glossary.md) | Bilingual glossary of key terms |
 
 ---
 
-## Status / 当前状态
+## Status
 
 - **Stage:** **Live.** Deployed on Cloud Run behind a custom domain, backed by
   Neon (Postgres + pgvector): **https://ack.icareu.cc** (e.g. `/health`,
@@ -78,7 +66,7 @@ over the next ~3 years.
 - **Next:** RAG answer synthesis (Claude) over the expanding graph — see the
   [roadmap](docs/06-roadmap.md).
 
-## Quickstart / 快速开始
+## Quickstart
 
 Runs on **Node ≥ 22.18** (TypeScript runs directly). The **offline path needs no
 install** (the one dependency, the Neon driver, is lazy-loaded only when
@@ -99,10 +87,10 @@ npm install               # fetches @neondatabase/serverless (only needed for Ne
 npm run db:setup          # migrate + seed + embeddings + sample vector search
 ```
 
-## Repository layout / 仓库结构
+## Repository layout
 
 ```
-docs/                 Charter & specification (00–12 + glossary)
+docs/                 Charter & specification (00–17 + glossary)
 db/migrations/        Postgres schema (0001 core; 0002 optional pgvector)
 seed/                 Curated graph as JSON — single source of truth
   ontology.json         controlled vocabularies (mirrors docs/02 + the schema)
@@ -114,15 +102,16 @@ scripts/              seed-to-SQL + embeddings-to-SQL; Postgres / Neon setup
 test/                 node --test suites (model, queries, embeddings, HTTP, MCP)
 ```
 
-## For the AI coding agent / 给 AI 编程代理
+## Development
 
-This repo is developed **incrementally by an AI agent**. Before changing the
-model, read [`docs/07-development-principles.md`](docs/07-development-principles.md):
-a model change now means updating **`docs/02` + the migration + `seed/ontology.json`
-+ the validator** together. Run `npm run validate && npm test && npm run db:verify`
-before committing. Pull the next unit of work from [`docs/06-roadmap.md`](docs/06-roadmap.md).
+Before changing the model, read
+[`docs/07-development-principles.md`](docs/07-development-principles.md): a model
+change means updating **`docs/02` + the migration + `seed/ontology.json` + the
+validator** together. Run `npm run validate && npm test && npm run db:verify`
+before committing. Pull the next unit of work from
+[`docs/06-roadmap.md`](docs/06-roadmap.md).
 
-## License / 许可
+## License
 
 Open by design (**open by default**):
 - **Code** — MIT (see [`LICENSE`](LICENSE)).
