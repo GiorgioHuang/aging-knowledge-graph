@@ -27,8 +27,10 @@ test("semantic search ranks fall-related items for a fall query", async () => {
 
 test("semantic search ranks loneliness for a loneliness query", async () => {
   const index = await buildIndex(g);
-  const hits = await searchMemory(index, "social isolation and loneliness", { k: 5 });
-  assert.ok(hits.some((h) => h.id === "ga:loneliness" || h.id === "ga:social-isolation"));
+  // the graph now also holds loneliness-themed theory/gap/question nodes, so widen
+  // to the top node results — the core concept nodes must still surface.
+  const hits = await searchMemory(index, "social isolation and loneliness", { k: 8, owner: "node" });
+  assert.ok(hits.some((h) => h.id === "ga:loneliness" || h.id === "ga:social-isolation"), `got: ${hits.map((h) => h.id).join(", ")}`);
 });
 
 test("owner filter restricts results to nodes", async () => {

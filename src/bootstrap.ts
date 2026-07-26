@@ -40,6 +40,7 @@ async function migrate(sql: Sql): Promise<void> {
   for (const s of statements(mig("0008_topic_source.sql"))) await sql.query(s);
   for (const s of statements(mig("0009_node_codes.sql"))) await sql.query(s);
   for (const s of statements(mig("0010_node_codes_auto.sql"))) await sql.query(s);
+  for (const s of statements(mig("0011_theory_and_gaps.sql"))) await sql.query(s);
 }
 
 /** Upsert the canonical seed (idempotent). Existing rows are refreshed; rows

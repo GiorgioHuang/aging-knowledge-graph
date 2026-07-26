@@ -4,8 +4,8 @@ import { loadGraph, validate } from "../src/model.ts";
 
 test("seed graph loads with expected counts", () => {
   const g = loadGraph();
-  assert.equal(g.nodes.size, 35);
-  assert.equal(g.claims.size, 32);
+  assert.equal(g.nodes.size, 38);
+  assert.equal(g.claims.size, 36);
   assert.equal(g.evidence.size, 25);
   assert.equal(g.contradictions.length, 2);
 });

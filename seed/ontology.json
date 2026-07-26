@@ -3,14 +3,16 @@
   "nodeTypes": [
     "disease", "symptom", "outcome", "population", "intervention", "exercise",
     "nutrition", "drug", "mechanism", "scale", "tool", "research", "paper",
-    "guideline", "expert", "organization", "technology"
+    "guideline", "expert", "organization", "technology",
+    "theory", "model", "knowledge_gap", "research_question"
   ],
   "relationshipTypes": [
     "treats", "prevents", "improves", "worsens", "causes",
     "increases_risk_of", "reduces_risk_of", "diagnoses", "assesses", "measures",
-    "is_a", "part_of", "recommends", "related"
+    "is_a", "part_of", "recommends", "related",
+    "explains", "informs", "generates"
   ],
-  "definitionalRelationships": ["is_a", "part_of", "assesses", "measures", "diagnoses"],
+  "definitionalRelationships": ["is_a", "part_of", "assesses", "measures", "diagnoses", "related", "explains", "informs", "generates"],
   "directions": ["increase", "decrease", "no_effect", "mixed"],
   "certainties": ["high", "moderate", "low", "very_low"],
   "statuses": ["curated", "unverified", "needs_refinement", "skeleton"],

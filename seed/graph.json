@@ -40,7 +40,10 @@
     { "id": "ga:interrai-drs", "type": "scale", "name": "Depression Rating Scale (interRAI/MDS)", "domains": ["mental health"] },
     { "id": "ga:interrai-adlh", "type": "scale", "name": "ADL Hierarchy Scale (interRAI/MDS)", "domains": ["rehabilitation", "frailty"] },
     { "id": "ga:interrai-chess", "type": "scale", "name": "CHESS Scale — Changes in Health, End-stage disease, Signs and Symptoms (interRAI/MDS)", "domains": ["frailty", "palliative care", "gerontology"] },
-    { "id": "ga:interrai-pain", "type": "scale", "name": "Pain Scale (interRAI/MDS)", "domains": ["palliative care", "gerontology"] }
+    { "id": "ga:interrai-pain", "type": "scale", "name": "Pain Scale (interRAI/MDS)", "domains": ["palliative care", "gerontology"] },
+    { "id": "ga:cognitive-discrepancy-loneliness", "type": "theory", "name": "Cognitive discrepancy model of loneliness", "domains": ["mental health"], "description": "Loneliness arises from a perceived discrepancy between desired and actual social relationships; it is a subjective state, distinct from objective social isolation." },
+    { "id": "ga:gap-digital-loneliness", "type": "knowledge_gap", "name": "Digital social & reminiscence interventions for loneliness are under-studied in older adults", "domains": ["mental health", "digital health"], "description": "Few high-certainty trials evaluate digital social-connection or reminiscence/life-story interventions for loneliness in community-dwelling older adults; effect sizes, mechanisms, and durability remain unclear." },
+    { "id": "ga:rq-digital-loneliness", "type": "research_question", "name": "Do digital reminiscence / life-story interventions reduce loneliness in community-dwelling older adults versus usual activities?", "domains": ["mental health", "digital health"] }
   ],
 
   "claims": [
@@ -78,7 +81,11 @@
     { "id": "ir-drs", "type": "assesses", "subject": "ga:interrai-drs", "object": "ga:depression", "status": "curated", "evidence": ["E-DRS-Burrows-2000"] },
     { "id": "ir-adlh", "type": "assesses", "subject": "ga:interrai-adlh", "object": "ga:adl", "status": "curated", "evidence": ["E-ADLH-Morris-1999"] },
     { "id": "ir-chess", "type": "assesses", "subject": "ga:interrai-chess", "object": "ga:health-instability", "status": "curated", "evidence": ["E-CHESS-Hirdes-2003"] },
-    { "id": "ir-pain", "type": "assesses", "subject": "ga:interrai-pain", "object": "ga:pain", "status": "curated", "evidence": ["E-PAIN-Fries-2001"] }
+    { "id": "ir-pain", "type": "assesses", "subject": "ga:interrai-pain", "object": "ga:pain", "status": "curated", "evidence": ["E-PAIN-Fries-2001"] },
+    { "id": "th-1", "type": "explains", "subject": "ga:cognitive-discrepancy-loneliness", "object": "ga:maladaptive-social-cognition", "status": "curated" },
+    { "id": "th-2", "type": "informs", "subject": "ga:cognitive-discrepancy-loneliness", "object": "ga:social-intervention", "status": "curated" },
+    { "id": "kg-1", "type": "related", "subject": "ga:gap-digital-loneliness", "object": "ga:loneliness", "status": "curated" },
+    { "id": "kg-2", "type": "generates", "subject": "ga:gap-digital-loneliness", "object": "ga:rq-digital-loneliness", "status": "curated" }
   ],
 
   "contradictions": [

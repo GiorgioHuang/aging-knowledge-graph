@@ -88,6 +88,7 @@ Example client config (stdio):
 | `high_certainty_about` | `node` | CQ14 — High-certainty claims on a topic |
 | `conflicts` | — | CQ13 — where evidence conflicts |
 | `gaps` | — | CQ16/24 — unverified/placeholder claims |
+| `knowledge_gaps` | `topic?` | first-class knowledge_gap nodes + the research questions they generate; with a topic, also weak/unverified evidence touching it |
 | `for_population` | `population` | CQ18 — claims scoped to a population |
 | `neighbourhood` | `node` | CQ20/21 — a node's cross-domain neighbourhood |
 | `comparative` | — | CQ22 — comparative-effectiveness claims |

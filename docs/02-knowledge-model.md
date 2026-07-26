@@ -84,6 +84,15 @@ in [`10-standards-alignment.md`](10-standards-alignment.md)),
 | **Expert** | A researcher/clinician | (named individual) | affiliation, ORCID |
 | **Organization** | An institution/body | WHO, CDC | type, country |
 | **Technology** | A technique/approach | RAG, LLM, FHIR | category |
+| **Theory** | An explanatory theory | Cognitive discrepancy model of loneliness | proponent, field |
+| **Model** | A conceptual/logic model | Behaviour-change logic model | components |
+| **Knowledge gap** | A recorded gap in evidence/theory | "digital reminiscence for loneliness is under-studied" | domains, description |
+| **Research question** | A question a gap generates | "does digital reminiscence reduce loneliness vs usual activities?" | domains |
+
+**Theory / Model / Knowledge gap / Research question** were added so the graph
+can support intervention-research workflows (Problem → Theory → Mechanism →
+Intervention → Outcome → Measurement, plus evidence gaps). See
+[`18-research-platform-readiness.md`](18-research-platform-readiness.md).
 
 **Two concepts modeled as qualifiers/roles, not node types** (to avoid type
 bloat):
@@ -115,19 +124,26 @@ Core relationship types:
 | **is_a / subtype_of** | A → B | A is a kind of B (taxonomy backbone) |
 | **part_of** | A → B | A is a component of B |
 | **recommends** | Guideline/Organization → Intervention | A recommends B (carries the guideline's own grade) |
+| **explains** | Theory → Mechanism | theory A posits/explains mechanism B (structural) |
+| **informs** | Theory/Model → Intervention | theory A informs the design of intervention B (structural) |
+| **generates** | Knowledge gap → Research question | gap A gives rise to research question B (structural) |
 | **has_mechanism** | Claim/edge → Mechanism | the claim operates via mechanism B |
 | **evidence** | Paper/Research/Guideline → Claim | A provides evidence for claim B |
 | **contradicts** | Claim → Claim | A's evidence conflicts with B |
-| **related** ⚠️ | A ↔ B | **Temporary placeholder only** — see warning below |
+| **related** | A ↔ B | Structural/navigational association (definitional, no evidence). Sanctioned for knowledge_gap ↔ the topics it concerns; otherwise a temporary placeholder — see note below |
 
 Direction and semantics are **fixed per type** so the graph is queryable and the
 AI extractor is unambiguous. New relationship types follow the same governance as
 node types.
 
-> ⚠️ **`related` is a code smell.** It is a junk drawer. It is permitted only as
-> a temporary placeholder when the correct specific relationship is not yet
-> known, and must be flagged `status: needs_refinement` and later replaced by a
-> specific type. Curation/AI should minimize its use.
+> ⚠️ **`related` for empirical claims is a code smell.** As an *evidential* edge
+> it is a junk drawer — permitted only as a temporary placeholder (flag
+> `status: needs_refinement`, replace with a specific type later). It has **one
+> sanctioned structural use**: linking a `knowledge_gap` to the topic(s) it
+> concerns, where it is definitional (no evidence required). `explains`,
+> `informs` and `generates` (theory/gap scaffolding) are likewise **definitional**
+> structural links — the empirical support lives on the intervention→outcome
+> claims they point at, not on the structural edge itself.
 
 ### Why `is_a` matters
 

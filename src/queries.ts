@@ -73,6 +73,65 @@ export function gaps(g: Graph): AnswerRow[] {
     .map((c) => row(g, c));
 }
 
+export interface KnowledgeGapRow {
+  id: string;
+  name: string;
+  description?: string;
+  domains: string[];
+  research_questions: { id: string; name: string }[]; // via `generates`
+  concerns: { id: string; name: string; type: string }[]; // topics it `related`-links to
+}
+
+export interface KnowledgeGapsResult {
+  gaps: KnowledgeGapRow[];
+  /** When a topic is given AND resolves to a node: weak/unverified/indirect
+   *  claims touching it — the "evidence is thin here" signal, distinct from the
+   *  first-class knowledge_gap nodes above. */
+  weak_or_unverified?: AnswerRow[];
+}
+
+/** First-class knowledge gaps: `knowledge_gap` nodes with the research questions
+ *  they `generate` and the topics they `relate` to; when a `topic` is given, also
+ *  the weak/unverified evidence touching that topic. Answers "what is missing or
+ *  weakly supported for X?". Omit `topic` to list every gap. */
+export function knowledgeGaps(g: Graph, opts: { topic?: string } = {}): KnowledgeGapsResult {
+  const claims = [...g.claims.values()];
+  const gapRow = (n: NonNullable<ReturnType<Graph["nodes"]["get"]>>): KnowledgeGapRow => ({
+    id: n.id, name: n.name, description: n.description, domains: n.domains ?? [],
+    research_questions: claims
+      .filter((c) => c.subject === n.id && c.type === "generates")
+      .map((c) => ({ id: c.object, name: nameOf(g, c.object) })),
+    concerns: claims
+      .filter((c) => c.subject === n.id && c.type === "related")
+      .map((c) => ({ id: c.object, name: nameOf(g, c.object), type: g.nodes.get(c.object)?.type ?? "" })),
+  });
+  let gaps = [...g.nodes.values()].filter((n) => n.type === "knowledge_gap").map(gapRow);
+
+  const topic = opts.topic?.trim().toLowerCase();
+  if (!topic) return { gaps };
+
+  // resolve the topic to a node (exact id first, then a name/id substring match)
+  const topicNode = g.nodes.get(opts.topic!.trim())
+    ?? [...g.nodes.values()].find((n) => n.name.toLowerCase().includes(topic) || n.id.toLowerCase().includes(topic));
+
+  gaps = gaps.filter((gr) =>
+    gr.id.toLowerCase().includes(topic) ||
+    gr.name.toLowerCase().includes(topic) ||
+    (gr.description ?? "").toLowerCase().includes(topic) ||
+    gr.domains.some((d) => d.toLowerCase().includes(topic)) ||
+    gr.concerns.some((cc) => cc.id.toLowerCase().includes(topic) || cc.name.toLowerCase().includes(topic) || (topicNode ? cc.id === topicNode.id : false)));
+
+  let weak_or_unverified: AnswerRow[] | undefined;
+  if (topicNode) {
+    const WEAK = new Set(["low", "very_low"]);
+    weak_or_unverified = claims
+      .filter((c) => (c.subject === topicNode.id || c.object === topicNode.id || c.population === topicNode.id || c.mechanism === topicNode.id))
+      .filter((c) => c.status === "unverified" || c.status === "needs_refinement" || c.status === "skeleton" || WEAK.has(String(c.certainty)))
+      .map((c) => row(g, c));
+  }
+  return weak_or_unverified ? { gaps, weak_or_unverified } : { gaps };
+}
+
 /** CQ18: everything known about a node, scoped to a population. */
 export function forPopulation(g: Graph, populationId: string): AnswerRow[] {
   return [...g.claims.values()].filter((c) => c.population === populationId).map((c) => row(g, c));

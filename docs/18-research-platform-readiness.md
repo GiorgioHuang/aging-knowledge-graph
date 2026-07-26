@@ -6,6 +6,13 @@
 > *what we will provide next*. Read-only audit; no schema was changed to produce
 > this report.
 
+> **Update — P0 (schema + MCP) implemented.** `theory` / `model` /
+> `knowledge_gap` / `research_question` node types and `explains` / `informs` /
+> `generates` relationships were added (migration `0011`), plus a
+> `knowledge_gaps(topic)` MCP tool and a seeded loneliness showcase. The two
+> P0 *schema/MCP* gaps below are now ✅. The remaining P0 item is **content
+> growth** in the priority domains (via the Curator), plus P1/P2 items.
+
 ## TL;DR — Readiness: **Partially Ready**
 
 The graph is a solid **evidence-and-provenance backbone**. The chain
@@ -73,8 +80,8 @@ growth by the Curator agent — a population effort, not a schema problem.
 | **Outcome modelling** | ✅ Ready | `outcome` type; `direction`, `effect_value/measure`, `certainty` | — |
 | **Measurement retrieval** | ✅ Ready (schema) / 🟡 content | `scale` + `tool` types with `measures`/`assesses`; 8 scales seeded; needs more instruments (UCLA-LS, de Jong Gierveld, WHO-5, etc.) | P0 content |
 | **Evidence provenance** | ✅ Ready (strength) | `source_id`, `quote`, `study_design`, `certainty`, `status`, comparator; Reviewer verification | — |
-| **Theory retrieval** | ❌ Missing | no `theory`/`model` node type | **P0** |
-| **Knowledge-gap modelling** | 🟡 Partial | `gaps` query = *data-quality* gaps (unverified/needs_refinement); `gaptopics` turns unanswered Q&A into curator topics; **no first-class KnowledgeGap/ResearchQuestion** | **P0** |
+| **Theory retrieval** | ✅ Ready *(P0 done)* | `theory` + `model` node types with `explains`/`informs` links; query via `list_nodes(type=theory)` / `search` | — |
+| **Knowledge-gap modelling** | ✅ Ready *(P0 done)* | first-class `knowledge_gap` + `research_question` nodes with `generates`/`related`; `knowledge_gaps(topic)` MCP tool (also surfaces weak/unverified evidence). `gaptopics` still feeds the curator from unanswered Q&A | — |
 | **Path queries** | 🟡 Partial | hop-by-hop via `node_detail`/`neighbourhood`; no single multi-hop path tool | P1 |
 | **MCP access** | ✅ Ready | 12 tools, prefix `graceage_`, over stdio + `POST /mcp` | — |
 | **Population scoping** | ✅ Ready | `population` type + `for_population` | — |

@@ -63,8 +63,8 @@ test("GET /nodes/:id/detail returns claims, evidence, neighbours", async () => {
 
 test("GET /graph returns nodes and edges with ids", async () => {
   const g = await (await fetch(base + "/graph")).json();
-  assert.equal(g.nodes.length, 35);
-  assert.equal(g.edges.length, 32);
+  assert.equal(g.nodes.length, 38);
+  assert.equal(g.edges.length, 36);
   const ex = g.edges.find((e: { id: string }) => e.id === "fc-3");
   assert.equal(ex.source, "ga:exercise");
   assert.equal(ex.target, "ga:fall-rate");

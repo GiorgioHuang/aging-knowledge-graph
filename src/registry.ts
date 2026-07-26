@@ -67,6 +67,13 @@ export const registry: QueryDef[] = [
     run: (g) => Q.gaps(g),
   },
   {
+    name: "knowledge_gaps",
+    description:
+      "Knowledge gaps for research planning: first-class knowledge_gap nodes with the research questions they generate and the topics they concern. Give a topic (node id or name substring) to focus, and to also surface weak/unverified/indirect evidence touching that topic — answering 'what is missing or weakly supported for X?'. Omit topic to list every gap.",
+    inputSchema: obj({ topic: { type: "string", description: "topic node id or name substring (optional)" } }),
+    run: (g, a) => Q.knowledgeGaps(g, { topic: str(a.topic) }),
+  },
+  {
     name: "for_population",
     description: "Every claim scoped to a given population node.",
     inputSchema: obj({ population: { type: "string", description: "population node id" } }, ["population"]),
