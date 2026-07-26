@@ -1,6 +1,6 @@
 {
   "_comment": "Curated V0 seed graph. Evidence-backed cross-domain chains (falls/exercise, social/loneliness, dementia risk factors) plus interRAI/MDS assessment scales (CPS, DRS, ADL Hierarchy, CHESS, Pain) as a measurement layer. All DOIs/PMIDs verified (interRAI scale names are referenced with their validation-paper citations; the proprietary interRAI item dictionaries are NOT redistributed). Unconfirmed CURIE codes are omitted rather than guessed.",
-  "version": 3,
+  "version": 4,
 
   "nodes": [
     { "id": "ga:pop-community-older", "type": "population", "name": "Community-dwelling older adults (65+)", "domains": ["gerontology"] },
