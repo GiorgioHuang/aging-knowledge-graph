@@ -1,6 +1,6 @@
 {
   "_comment": "Curated V0 seed graph. Evidence-backed cross-domain chains (falls/exercise, social/loneliness, dementia risk factors) plus interRAI/MDS assessment scales (CPS, DRS, ADL Hierarchy, CHESS, Pain) as a measurement layer. All DOIs/PMIDs verified (interRAI scale names are referenced with their validation-paper citations; the proprietary interRAI item dictionaries are NOT redistributed). Unconfirmed CURIE codes are omitted rather than guessed.",
-  "version": 4,
+  "version": 5,
 
   "nodes": [
     { "id": "ga:pop-community-older", "type": "population", "name": "Community-dwelling older adults (65+)", "domains": ["gerontology"] },
@@ -43,7 +43,31 @@
     { "id": "ga:interrai-pain", "type": "scale", "name": "Pain Scale (interRAI/MDS)", "domains": ["palliative care", "gerontology"] },
     { "id": "ga:cognitive-discrepancy-loneliness", "type": "theory", "name": "Cognitive discrepancy model of loneliness", "domains": ["mental health"], "description": "Loneliness arises from a perceived discrepancy between desired and actual social relationships; it is a subjective state, distinct from objective social isolation." },
     { "id": "ga:gap-digital-loneliness", "type": "knowledge_gap", "name": "Digital social & reminiscence interventions for loneliness are under-studied in older adults", "domains": ["mental health", "digital health"], "description": "Few high-certainty trials evaluate digital social-connection or reminiscence/life-story interventions for loneliness in community-dwelling older adults; effect sizes, mechanisms, and durability remain unclear." },
-    { "id": "ga:rq-digital-loneliness", "type": "research_question", "name": "Do digital reminiscence / life-story interventions reduce loneliness in community-dwelling older adults versus usual activities?", "domains": ["mental health", "digital health"] }
+    { "id": "ga:rq-digital-loneliness", "type": "research_question", "name": "Do digital reminiscence / life-story interventions reduce loneliness in community-dwelling older adults versus usual activities?", "domains": ["mental health", "digital health"] },
+
+    { "id": "ga:social-connectedness", "type": "outcome", "name": "Social connectedness", "domains": ["mental health", "gerontology"], "description": "Subjective sense of closeness, belonging and support in one's relationships." },
+    { "id": "ga:social-support", "type": "outcome", "name": "Social support", "domains": ["mental health", "gerontology"], "description": "Perceived or received emotional, informational and practical support from one's network." },
+    { "id": "ga:wellbeing", "type": "outcome", "name": "Well-being (subjective & psychological)", "domains": ["mental health", "gerontology"] },
+    { "id": "ga:purpose-in-life", "type": "outcome", "name": "Purpose in life", "domains": ["mental health", "gerontology"] },
+    { "id": "ga:identity-continuity", "type": "outcome", "name": "Identity continuity", "domains": ["mental health", "gerontology"], "description": "Maintaining a coherent sense of self and personal narrative over time." },
+    { "id": "ga:meaningful-engagement", "type": "outcome", "name": "Meaningful engagement / activity", "domains": ["mental health", "gerontology"] },
+
+    { "id": "ga:psychosocial-intervention", "type": "intervention", "name": "Psychosocial intervention", "domains": ["mental health"], "description": "Umbrella for social and psychological interventions (e.g. reminiscence, befriending, group activities) — distinct from cognitive training." },
+    { "id": "ga:reminiscence-therapy", "type": "intervention", "name": "Reminiscence therapy", "domains": ["mental health", "gerontology"], "description": "Structured recall and sharing of life memories to support identity, mood and connection. An identity/engagement activity — NOT cognitive training or memory rehabilitation." },
+    { "id": "ga:life-story-work", "type": "intervention", "name": "Life-story work", "domains": ["mental health", "gerontology"], "description": "Co-creating a personal life narrative or legacy to support identity continuity. NOT cognitive/memory training." },
+    { "id": "ga:digital-reminiscence", "type": "intervention", "name": "Digital reminiscence / life-story intervention", "domains": ["mental health", "digital health"], "description": "Reminiscence or life-story work delivered or supported by digital tools (media, apps, prompts)." },
+    { "id": "ga:cognitive-training", "type": "intervention", "name": "Cognitive training / memory training", "domains": ["dementia", "mental health"], "description": "Guided practice of cognitive tasks to improve or maintain cognition. DISTINCT from reminiscence/life-story work, which target identity and engagement, not cognition." },
+
+    { "id": "ga:self-determination-theory", "type": "theory", "name": "Self-determination theory", "domains": ["mental health", "behavior change"], "description": "Autonomy, competence and relatedness underpin motivation and well-being (Deci & Ryan)." },
+    { "id": "ga:socioemotional-selectivity", "type": "theory", "name": "Socioemotional selectivity theory", "domains": ["mental health", "gerontology"], "description": "As perceived time horizons shorten, people prioritise emotionally meaningful goals and relationships (Carstensen)." },
+
+    { "id": "ga:djg-loneliness", "type": "scale", "name": "De Jong Gierveld Loneliness Scale", "domains": ["mental health"] },
+    { "id": "ga:lsns", "type": "scale", "name": "Lubben Social Network Scale (LSNS)", "domains": ["mental health", "gerontology"] },
+    { "id": "ga:who5", "type": "scale", "name": "WHO-5 Well-Being Index", "domains": ["mental health"] },
+    { "id": "ga:wemwbs", "type": "scale", "name": "Warwick-Edinburgh Mental Well-being Scale (WEMWBS)", "domains": ["mental health"] },
+    { "id": "ga:ryff-pwb", "type": "scale", "name": "Ryff Scales of Psychological Well-being", "domains": ["mental health"] },
+    { "id": "ga:pil", "type": "scale", "name": "Purpose in Life Test (PIL)", "domains": ["mental health"] },
+    { "id": "ga:mspss", "type": "scale", "name": "Multidimensional Scale of Perceived Social Support (MSPSS)", "domains": ["mental health"] }
   ],
 
   "claims": [
@@ -85,7 +109,26 @@
     { "id": "th-1", "type": "explains", "subject": "ga:cognitive-discrepancy-loneliness", "object": "ga:maladaptive-social-cognition", "status": "curated" },
     { "id": "th-2", "type": "informs", "subject": "ga:cognitive-discrepancy-loneliness", "object": "ga:social-intervention", "status": "curated" },
     { "id": "kg-1", "type": "related", "subject": "ga:gap-digital-loneliness", "object": "ga:loneliness", "status": "curated" },
-    { "id": "kg-2", "type": "generates", "subject": "ga:gap-digital-loneliness", "object": "ga:rq-digital-loneliness", "status": "curated" }
+    { "id": "kg-2", "type": "generates", "subject": "ga:gap-digital-loneliness", "object": "ga:rq-digital-loneliness", "status": "curated" },
+
+    { "id": "ms-djg", "type": "measures", "subject": "ga:djg-loneliness", "object": "ga:loneliness", "status": "curated" },
+    { "id": "ms-lsns", "type": "assesses", "subject": "ga:lsns", "object": "ga:social-isolation", "status": "curated" },
+    { "id": "ms-who5", "type": "measures", "subject": "ga:who5", "object": "ga:wellbeing", "status": "curated" },
+    { "id": "ms-wemwbs", "type": "measures", "subject": "ga:wemwbs", "object": "ga:wellbeing", "status": "curated" },
+    { "id": "ms-ryffwb", "type": "measures", "subject": "ga:ryff-pwb", "object": "ga:wellbeing", "status": "curated" },
+    { "id": "ms-ryffpur", "type": "measures", "subject": "ga:ryff-pwb", "object": "ga:purpose-in-life", "status": "curated" },
+    { "id": "ms-pil", "type": "measures", "subject": "ga:pil", "object": "ga:purpose-in-life", "status": "curated" },
+    { "id": "ms-mspss", "type": "measures", "subject": "ga:mspss", "object": "ga:social-support", "status": "curated" },
+
+    { "id": "ia-rem", "type": "is_a", "subject": "ga:reminiscence-therapy", "object": "ga:psychosocial-intervention", "status": "curated" },
+    { "id": "ia-life", "type": "is_a", "subject": "ga:life-story-work", "object": "ga:psychosocial-intervention", "status": "curated" },
+    { "id": "ia-digrem", "type": "is_a", "subject": "ga:digital-reminiscence", "object": "ga:reminiscence-therapy", "status": "curated" },
+    { "id": "ia-socint", "type": "is_a", "subject": "ga:social-intervention", "object": "ga:psychosocial-intervention", "status": "curated" },
+
+    { "id": "inf-sdt", "type": "informs", "subject": "ga:self-determination-theory", "object": "ga:psychosocial-intervention", "status": "curated" },
+    { "id": "inf-sst", "type": "informs", "subject": "ga:socioemotional-selectivity", "object": "ga:social-participation", "status": "curated" },
+
+    { "id": "rel-dr", "type": "related", "subject": "ga:gap-digital-loneliness", "object": "ga:digital-reminiscence", "status": "curated" }
   ],
 
   "contradictions": [

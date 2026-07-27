@@ -22,8 +22,8 @@ test("GET /health reports counts", async () => {
   const { status, body } = await get("/health");
   assert.equal(status, 200);
   assert.equal(body.status, "ok");
-  assert.equal(body.counts.nodes, 38);
-  assert.equal(body.counts.claims, 36);
+  assert.equal(body.counts.nodes, 58);
+  assert.equal(body.counts.claims, 51);
 });
 
 test("GET /queries is self-describing", async () => {
