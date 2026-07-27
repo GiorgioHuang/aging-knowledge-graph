@@ -1,0 +1,20 @@
+{
+  "_comment": "Priority research topics for the Healthy Aging Digital Intervention Research Platform, stored as PubMed SEARCH QUERIES (NOT identifiers). Harvesting these (src/pubmedharvest.ts harvestTopicBatch) runs the evidence-kind PubMed connector over each query so the empirical, cited content layer for the platform's priority domains — loneliness, social connection, psychosocial & digital interventions, purpose/meaning, and instrument validation in older adults — is generated from REAL papers (a real PMID + abstract quote by construction; new claims are written unverified for the review queue). We never hardcode or invent a PMID/DOI. Edit/extend freely.",
+  "topics": [
+    { "label": "Loneliness interventions (older adults)", "query": "loneliness interventions older adults" },
+    { "label": "Digital interventions for loneliness", "query": "digital technology intervention loneliness older adults" },
+    { "label": "Social isolation interventions", "query": "social isolation interventions older adults" },
+    { "label": "Reminiscence therapy", "query": "reminiscence therapy older adults wellbeing" },
+    { "label": "Life review therapy", "query": "life review therapy older adults depression" },
+    { "label": "Befriending interventions", "query": "befriending intervention loneliness older adults" },
+    { "label": "Intergenerational programs", "query": "intergenerational program older adults wellbeing" },
+    { "label": "Social prescribing", "query": "social prescribing older adults loneliness" },
+    { "label": "Purpose in life & health", "query": "purpose in life older adults health outcomes" },
+    { "label": "Meaningful activity & wellbeing", "query": "meaningful activity engagement older adults wellbeing" },
+    { "label": "Technology acceptance (older adults)", "query": "technology acceptance adoption older adults" },
+    { "label": "Digital literacy interventions", "query": "digital literacy training older adults" },
+    { "label": "Loneliness scale validation", "query": "loneliness scale validation psychometric older adults" },
+    { "label": "Social support & wellbeing", "query": "social support wellbeing older adults" },
+    { "label": "Cognitive training interventions", "query": "cognitive training intervention older adults" }
+  ]
+}

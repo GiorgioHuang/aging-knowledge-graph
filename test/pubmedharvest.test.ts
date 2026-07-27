@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildExtractPrompt, guidelineCanon } from "../src/pubmedharvest.ts";
+import { buildExtractPrompt, guidelineCanon, priorityTopics } from "../src/pubmedharvest.ts";
 
 test("buildExtractPrompt embeds the abstract, vocabulary, and existing nodes", () => {
   const meta = { source_id: "PMID:1", exists: true, title: "Exercise and falls", journal: "JAMA", year: "2020", study_design: "rct", abstract: "In older adults, exercise reduced the rate of falls by 20%." };
@@ -21,4 +21,15 @@ test("guidelineCanon loads landmark guideline queries (topics, not fabricated id
     // The canon must NOT hardcode identifiers — PubMed resolves the real PMID.
     assert.doesNotMatch(e.query, /\bPMID\b|\bDOI\b|\b\d{7,9}\b/, `${e.label} query carries no baked-in id`);
   }
+});
+
+test("priorityTopics loads the platform's priority research queries (topics, not fabricated ids)", () => {
+  const topics = priorityTopics();
+  assert.ok(topics.length >= 10, "a meaningful priority-topics list is present");
+  for (const e of topics) {
+    assert.ok(e.label && e.query, "each entry has a label and a query");
+    assert.doesNotMatch(e.query, /\bPMID\b|\bDOI\b|\b\d{7,9}\b/, `${e.label} query carries no baked-in id`);
+  }
+  // The platform's core domain (loneliness) must be represented.
+  assert.ok(topics.some((e) => /loneliness/i.test(e.query)), "loneliness is a priority topic");
 });

@@ -121,8 +121,13 @@
       <button id="cn_btn" onclick="harvestCanon()">Harvest landmark guidelines (canon)</button>
       <span class="hint">— one click sweeps a curated list of well-known geriatrics guidelines via PubMed; runs in batches.</span>
     </p>
+    <p>
+      <button id="tp_btn" onclick="harvestTopics()">Harvest priority topics</button>
+      <span class="hint">— one click sweeps the platform's priority research domains (loneliness · social connection · psychosocial &amp; digital interventions · purpose/meaning · instrument validation) via PubMed; runs in batches to build the empirical, cited content layer.</span>
+    </p>
     <div id="hv_out" class="out" hidden></div>
     <div id="cn_out" class="out" hidden></div>
+    <div id="tp_out" class="out" hidden></div>
   </fieldset>
 
   <fieldset>
@@ -273,6 +278,30 @@ async function harvestCanon() {
       if (body.done) break;
     } while (offset < total && round < 40);
     show(out, `Done — swept ${total} landmark guideline topics, ${proposed} extracted, ${created} new claim(s), ${merged} evidence added.\n\n${done.join("\n")}`, true);
+    await reload();
+  } catch (e) { show(out, String((e && e.message) || e), false); }
+  finally { btn.disabled = false; }
+}
+
+// Sweep the priority-topics list via PubMed (evidence kind), batched like the
+// canon so a long sweep won't time out at the gateway.
+async function harvestTopics() {
+  const out = $("tp_out"), btn = $("tp_btn");
+  btn.disabled = true;
+  let offset = 0, total = null, created = 0, merged = 0, proposed = 0, round = 0;
+  const done = [];
+  try {
+    do {
+      round++;
+      show(out, `sweeping priority topics… batch ${round}${total != null ? ` (${offset}/${total})` : ""} — ${created} new claim(s) so far`, true);
+      const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 2, per: 3 });
+      if (status !== 200) { show(out, body, false); return; }
+      total = body.total; offset = body.nextOffset;
+      created += body.created; merged += body.merged; proposed += body.proposed;
+      (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.papers} paper(s), ${e.created} new, ${e.merged} evidence`));
+      if (body.done) break;
+    } while (offset < total && round < 40);
+    show(out, `Done — swept ${total} priority topics, ${proposed} extracted, ${created} new claim(s), ${merged} evidence added.\n\n${done.join("\n")}`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }
   finally { btn.disabled = false; }

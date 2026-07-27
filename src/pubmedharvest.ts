@@ -214,3 +214,51 @@ export async function harvestGuidelineCanon(
   out.done = out.nextOffset >= total;
   return out;
 }
+
+// ---- Priority-topics harvest --------------------------------------------
+// The platform's priority research domains (loneliness, social connection,
+// psychosocial & digital interventions, purpose/meaning, instrument validation
+// in older adults), stored as PubMed SEARCH QUERIES. One-click harvesting sweeps
+// them via the evidence-kind connector so the empirical, cited content layer is
+// generated from REAL papers — never a hardcoded/invented id.
+
+export interface TopicEntry { label: string; query: string }
+
+let TOPICS_CACHE: TopicEntry[] | undefined;
+export function priorityTopics(): TopicEntry[] {
+  if (!TOPICS_CACHE) {
+    const path = join(dirname(fileURLToPath(import.meta.url)), "..", "seed", "priority-topics.json");
+    const raw = JSON.parse(readFileSync(path, "utf8")) as { topics?: TopicEntry[] };
+    TOPICS_CACHE = (raw.topics ?? []).filter((e) => e && e.query);
+  }
+  return TOPICS_CACHE;
+}
+
+/** Harvest a BATCH of the priority-topics list from PubMed. Batched by
+ *  (offset, count) — like the guideline canon — so a long sweep is many short
+ *  requests instead of one that times out at the gateway. Each topic runs the
+ *  evidence-kind PubMed harvest for `per` items (reviews / meta-analyses / RCTs
+ *  in older adults). New claims are `unverified` → Reviewer gate. */
+export async function harvestTopicBatch(
+  { offset = 0, count = 2, per = 3, kind = "evidence", model }: { offset?: number; count?: number; per?: number; kind?: "evidence" | "guideline"; model?: string },
+): Promise<CanonSummary> {
+  const topics = priorityTopics();
+  const total = topics.length;
+  const start = Math.max(0, Math.min(offset, total));
+  const batch = topics.slice(start, start + Math.max(1, count));
+  const useModel = model ?? envModelFor("curator");
+
+  const out: CanonSummary = {
+    total, offset: start, processed: 0, nextOffset: start, done: false,
+    proposed: 0, created: 0, merged: 0, reused_nodes: 0, entries: [],
+  };
+  for (const e of batch) {
+    const r = await harvestPubmed({ query: e.query, retmax: Math.max(1, Math.min(5, per)), model: useModel, kind });
+    out.processed++;
+    out.proposed += r.proposed; out.created += r.created; out.merged += r.merged; out.reused_nodes += r.reused_nodes;
+    out.entries.push({ label: e.label, papers: r.papers, created: r.created, merged: r.merged });
+  }
+  out.nextOffset = start + out.processed;
+  out.done = out.nextOffset >= total;
+  return out;
+}
