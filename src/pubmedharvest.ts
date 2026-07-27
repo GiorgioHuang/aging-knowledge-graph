@@ -21,6 +21,18 @@ import { pubmedSearch, pubmedTitles, fetchSourceMeta, type SourceMeta } from "./
 
 const onto = loadGraph().ontology;
 
+// The empirical layer only. Theory / model / knowledge_gap / research_question
+// nodes and the explains / informs / generates relationships are CURATED
+// meta-concepts (added deliberately, linked by hand) — not things to infer from
+// a single paper's abstract. Offering them to the extractor produced low-value
+// "knowledge_gap" nodes and, on DBs missing migration 0011, enum write errors.
+const HARVEST_EXCLUDE_NODE_TYPES = new Set(["theory", "model", "knowledge_gap", "research_question"]);
+const HARVEST_EXCLUDE_REL_TYPES = new Set(["explains", "informs", "generates"]);
+const HARVEST_VOCAB = {
+  nodeTypes: onto.nodeTypes.filter((t) => !HARVEST_EXCLUDE_NODE_TYPES.has(t)),
+  relationshipTypes: onto.relationshipTypes.filter((t) => !HARVEST_EXCLUDE_REL_TYPES.has(t)),
+};
+
 // PubMed publication-type filter + a title regex to rank matches, per harvest
 // "kind". Guidelines ARE indexed in PubMed (Guideline[pt] / Practice Guideline[pt])
 // — so the same connector, with a different filter, DISCOVERS guidelines by topic
@@ -51,10 +63,15 @@ interface RawClaim {
   relationship?: string; direction?: string; population?: string; certainty?: string; quote?: string;
 }
 
-export function buildExtractPrompt(meta: SourceMeta, existingNodes: { id: string; name: string; type: string }[]): string {
+export function buildExtractPrompt(
+  meta: SourceMeta,
+  existingNodes: { id: string; name: string; type: string }[],
+  vocabOverride?: { nodeTypes: string[]; relationshipTypes: string[] },
+): string {
+  const v = vocabOverride ?? HARVEST_VOCAB;
   const vocab = [
-    `node types: ${onto.nodeTypes.join(", ")}`,
-    `relationship types: ${onto.relationshipTypes.join(", ")}`,
+    `node types: ${v.nodeTypes.join(", ")}`,
+    `relationship types: ${v.relationshipTypes.join(", ")}`,
     `directions: ${onto.directions.join(", ")}`,
     `certainties: ${onto.certainties.join(", ")}`,
   ].join("\n");

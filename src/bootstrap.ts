@@ -29,18 +29,36 @@ function statements(file: string): string[] {
   return cleaned.split(";").map((s) => s.trim()).filter(Boolean);
 }
 
+const MIGRATIONS = [
+  "0001_init.sql", "0002_embeddings.sql", "0003_agents.sql", "0004_contact.sql",
+  "0005_ask_log.sql", "0006_ask_log_gap.sql", "0007_ask_log_tokens.sql",
+  "0008_topic_source.sql", "0009_node_codes.sql", "0010_node_codes_auto.sql",
+  "0011_theory_and_gaps.sql",
+];
+
+// Postgres "already exists / duplicate" error codes — safe to ignore when a
+// migration is re-applied (CREATE TYPE/TABLE/INDEX without IF NOT EXISTS, etc.).
+// duplicate_object / _table / _column / _schema / _function. Everything else
+// re-throws so a genuine migration failure still surfaces.
+const IGNORABLE = new Set(["42710", "42P07", "42701", "42P06", "42723"]);
+
+async function runStmt(sql: Sql, stmt: string): Promise<void> {
+  try {
+    await sql.query(stmt);
+  } catch (e) {
+    const code = (e as { code?: string })?.code ?? "";
+    const msg = String((e as Error)?.message ?? "");
+    if (IGNORABLE.has(code) || /already exists|duplicate/i.test(msg)) return;
+    throw e;
+  }
+}
+
+// Run every migration on every startup. All statements are either idempotent
+// (IF NOT EXISTS / ADD VALUE IF NOT EXISTS) or guarded by runStmt swallowing
+// "already exists" — so additive migrations (e.g. new enum values) reach an
+// already-provisioned production DB, not just a freshly-created one.
 async function migrate(sql: Sql): Promise<void> {
-  for (const s of statements(mig("0001_init.sql"))) await sql.query(s);
-  for (const s of statements(mig("0002_embeddings.sql"))) await sql.query(s);
-  for (const s of statements(mig("0003_agents.sql"))) await sql.query(s);
-  for (const s of statements(mig("0004_contact.sql"))) await sql.query(s);
-  for (const s of statements(mig("0005_ask_log.sql"))) await sql.query(s);
-  for (const s of statements(mig("0006_ask_log_gap.sql"))) await sql.query(s);
-  for (const s of statements(mig("0007_ask_log_tokens.sql"))) await sql.query(s);
-  for (const s of statements(mig("0008_topic_source.sql"))) await sql.query(s);
-  for (const s of statements(mig("0009_node_codes.sql"))) await sql.query(s);
-  for (const s of statements(mig("0010_node_codes_auto.sql"))) await sql.query(s);
-  for (const s of statements(mig("0011_theory_and_gaps.sql"))) await sql.query(s);
+  for (const f of MIGRATIONS) for (const s of statements(mig(f))) await runStmt(sql, s);
 }
 
 /** Upsert the canonical seed (idempotent). Existing rows are refreshed; rows
@@ -110,15 +128,15 @@ export async function ensureProvisioned({ force = false }: { force?: boolean } =
   const sql = await getSql();
   const version = seedVersion();
 
-  const [{ exists }] = (await sql.query("SELECT to_regclass('public.node') IS NOT NULL AS exists")) as { exists: boolean }[];
-
   if (force) {
     await sql.query("DROP TABLE IF EXISTS ask_log, contact_message, agent_run, topic, embedding, claim_relation, evidence, claim, node, meta CASCADE");
     await sql.query("DROP TYPE IF EXISTS node_type, relationship_type, claim_direction, grade_certainty, claim_status, care_setting, study_design CASCADE");
-    await migrate(sql);
-  } else if (!exists) {
-    await migrate(sql);
   }
+  // Always migrate (idempotent): a fresh DB gets the full schema, and an existing
+  // one picks up any migrations added since it was provisioned (e.g. new enum
+  // values) — the previous "only when the table is missing" gate meant additive
+  // migrations never reached production.
+  await migrate(sql);
   await sql.query("CREATE TABLE IF NOT EXISTS meta (key text PRIMARY KEY, value text)");
 
   if (!force) {
