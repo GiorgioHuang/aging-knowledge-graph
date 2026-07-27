@@ -131,8 +131,10 @@ export interface ReviewResult {
   deferred?: boolean; // citation lookup failed transiently → left unverified to retry
 }
 
-/** Review a single claim by id. `fetchMeta` is injectable for testing. */
-export async function reviewClaim(id: string, opts: { model?: string; fetchMeta?: MetaFetcher } = {}): Promise<ReviewResult | undefined> {
+/** Review a single claim by id. `fetchMeta` is injectable for testing.
+ *  `timeoutMs` bounds the judge LLM call — pass it on the HTTP path (behind a
+ *  gateway timeout); omit it in the background Job to keep the generous default. */
+export async function reviewClaim(id: string, opts: { model?: string; fetchMeta?: MetaFetcher; timeoutMs?: number } = {}): Promise<ReviewResult | undefined> {
   const model = opts.model ?? envModelFor("reviewer");
   const fetchMeta = opts.fetchMeta ?? fetchSourceMeta;
   const loaded = await loadClaim(id);
@@ -166,7 +168,7 @@ export async function reviewClaim(id: string, opts: { model?: string; fetchMeta?
   let reason = "";
   let certaintySuggestion: string | undefined;
   try {
-    const out = extractJson<{ verdict?: string; reason?: string; certainty?: string }>(await complete([{ role: "user", content: prompt }], { system: SYSTEM, maxTokens: 4000, model }));
+    const out = extractJson<{ verdict?: string; reason?: string; certainty?: string }>(await complete([{ role: "user", content: prompt }], { system: SYSTEM, maxTokens: 4000, model, timeoutMs: opts.timeoutMs, retries: opts.timeoutMs ? 2 : undefined }));
     verdict = out.verdict === "approve" ? "approve" : "refine";
     reason = String(out.reason ?? "");
     if (out.certainty && CERTAINTIES.has(out.certainty)) certaintySuggestion = out.certainty;
@@ -194,7 +196,7 @@ export async function reviewClaim(id: string, opts: { model?: string; fetchMeta?
  *  HAVE evidence are reviewable — evidence-less ones (e.g. seed placeholders for
  *  known gaps) are left as honest `unverified` rather than flagged. They heal
  *  automatically once a citation is attached (edge-level de-dup in the curator). */
-export async function reviewBatch(limit = 10, opts: { model?: string; fetchMeta?: MetaFetcher } = {}): Promise<ReviewResult[]> {
+export async function reviewBatch(limit = 10, opts: { model?: string; fetchMeta?: MetaFetcher; timeoutMs?: number } = {}): Promise<ReviewResult[]> {
   const sql = await getSql();
   const ids = (await sql.query(
     `SELECT id FROM claim c

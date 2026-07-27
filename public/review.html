@@ -69,9 +69,10 @@
 
   <div class="stats" id="stats"></div>
   <p style="margin:14px 0 8px"><button class="secondary" onclick="load()">Refresh</button>
+     <button id="rv_btn" onclick="reviewBacklog()" title="Run the Reviewer agent over the unverified backlog in batches — promotes grounded claims to curated, flags the rest for this queue">Review unverified backlog</button>
      <button class="secondary" onclick="dedupe()" title="Find and merge duplicate edges (same subject/relationship/object/direction)">Merge duplicate edges</button>
-     <button class="secondary" onclick="requeueFailed()" title="Reset failed topics to pending so they retry next run">Re-queue failed topics</button>
-     <span class="hint">Showing claims flagged <code>needs_refinement</code> by the reviewer agent.</span></p>
+     <button class="secondary" onclick="requeueFailed()" title="Reset failed topics to pending so they retry next run">Re-queue failed topics</button></p>
+  <p class="hint" style="margin:0 0 8px"><b>Review unverified backlog</b> runs the reviewer (uses the <i>reviewer</i> model above) over every <code>unverified</code> claim: it verifies each against its real source, promoting grounded ones to <code>curated</code> and sending the rest here as <code>needs_refinement</code>. Runs in small batches; safe to stop and re-run. The cards below are the <code>needs_refinement</code> claims awaiting your decision.</p>
 
   <p id="flash" class="msg" style="min-height:18px"></p>
   <div id="queue"><p class="empty">Loading…</p></div>
@@ -295,6 +296,44 @@ async function dedupe() {
     flash.textContent = "✓ Merged " + r.edges_merged + " edge group(s): deleted " + r.claims_deleted + " claim(s), moved " + r.evidence_moved + " evidence, dropped " + r.evidence_dropped + " duplicate.";
     load();
   } catch (e) { flash.className = "msg err"; flash.textContent = e.message; }
+}
+
+// Drain the unverified backlog: loop the reviewer in small batches until the
+// pile clears. Each claim commits its own status server-side, so a batch that
+// times out is harmless — we just re-issue and continue. Stall detection stops
+// the loop if remaining stops falling (claims stuck deferring on a transient).
+async function reviewBacklog() {
+  const flash = $("#flash"), btn = $("#rv_btn");
+  btn.disabled = true;
+  let reviewed = 0, curated = 0, flagged = 0, deferred = 0, round = 0, fails = 0, stall = 0, last = null, model = "";
+  flash.className = "msg"; flash.textContent = "reviewing the unverified backlog…";
+  try {
+    while (round < 500) {
+      round++;
+      const res = await fetch("/admin/review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ limit: 3 }) });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // A batch can time out at the gateway; finished claims are already saved,
+        // so retry the same call and continue from what's left.
+        if (++fails <= 4) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+        flash.className = "msg err";
+        flash.textContent = (b.error || ("request failed (status " + res.status + ")")) + " — " + curated + " curated, " + flagged + " flagged so far; click again to continue.";
+        return;
+      }
+      fails = 0; model = b.model || model;
+      reviewed += b.reviewed; curated += b.curated; flagged += b.flagged; deferred += b.deferred || 0;
+      flash.className = "msg";
+      flash.textContent = "reviewing on " + model + "… " + b.remaining + " unverified left · " + curated + " → curated, " + flagged + " → needs refinement so far";
+      if (!b.reviewed) break;                          // nothing left with evidence to review
+      if (last !== null && b.remaining >= last) { if (++stall >= 3) break; } else stall = 0; // stuck on deferred claims
+      last = b.remaining;
+    }
+    flash.className = "msg ok";
+    flash.textContent = "✓ Reviewed " + reviewed + " on " + model + " — " + curated + " → curated, " + flagged + " → needs refinement" +
+      (deferred ? ", " + deferred + " deferred (transient — retry later)" : "") + (last != null ? " · " + last + " unverified remain" : "") + ".";
+    load();
+  } catch (e) { flash.className = "msg err"; flash.textContent = e.message; }
+  finally { btn.disabled = false; }
 }
 
 async function requeueFailed() {

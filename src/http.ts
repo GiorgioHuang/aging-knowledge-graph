@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadGraph } from "./model.ts";
 import { loadGraphAsync } from "./store.ts";
-import { isDbConfigured } from "./db.ts";
+import { isDbConfigured, getSql } from "./db.ts";
 import { ensureProvisioned } from "./bootstrap.ts";
 import { registry, byName } from "./registry.ts";
 import { handleRpc, type RpcRequest } from "./mcp-core.ts";
@@ -17,10 +17,10 @@ import {
 } from "./writes.ts";
 import { importBatch, importCsv, fetchPubmed } from "./import.ts";
 import { reviewQueue, reviewQueueCount, reviewStats, decideClaim } from "./review.ts";
-import { repairClaim } from "./reviewer.ts";
+import { repairClaim, reviewBatch } from "./reviewer.ts";
 import { dedupClaims } from "./dedup.ts";
 import { requeueFailedTopics } from "./topics.ts";
-import { agentModelConfig, setAgentModel } from "./settings.ts";
+import { agentModelConfig, setAgentModel, resolveAgentModel } from "./settings.ts";
 import { validateContact, saveContactMessage, listContactMessages } from "./contact.ts";
 import { notifyContact, telegramConfigured } from "./notify.ts";
 import { answerQuestion } from "./ask.ts";
@@ -246,6 +246,36 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
         if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
         return send(res, 200, { requeued: await requeueFailedTopics() });
+      }
+
+      // ---- drain the unverified backlog: run the Reviewer over a batch, batched
+      //      (like the harvests) so the /review page can clear the queue without
+      //      the Cloud Run Job. Each claim commits its own status, so a gateway
+      //      timeout is safe — the client just re-issues and continues. ----
+      if (path === "/admin/review" && req.method === "POST") {
+        if (!isDbConfigured()) return send(res, 503, { error: "requires a database (DATABASE_URL)" });
+        if (!isLlmConfigured()) return send(res, 503, { error: "requires ANTHROPIC_API_KEY (the reviewer)" });
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        let body: Record<string, unknown> = {};
+        try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
+        const limit = Math.max(1, Math.min(5, Number(body.limit) || 3));
+        try {
+          const model = await resolveAgentModel("reviewer");
+          const results = await reviewBatch(limit, { model, timeoutMs: 60000 });
+          const curated = results.filter((r) => r.status === "curated").length;
+          const flagged = results.filter((r) => r.status === "needs_refinement").length;
+          const deferred = results.filter((r) => r.deferred).length;
+          const sql = await getSql();
+          const [{ remaining }] = (await sql.query(
+            "SELECT count(*)::int AS remaining FROM claim c WHERE c.status='unverified' AND EXISTS (SELECT 1 FROM evidence e WHERE e.claim_id = c.id)",
+          )) as { remaining: number }[];
+          if (state.reload) await state.reload();
+          return send(res, 200, { reviewed: results.length, curated, flagged, deferred, remaining, model });
+        } catch (e) {
+          return send(res, 502, { error: `review failed: ${(e as Error).message}` });
+        }
       }
 
       // ---- public read-only browse page (clickable citations) ----
@@ -634,7 +664,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           ui: { home: "/", browse: "/browse", about: "/about" },
           management: { curation: "/admin", review: "/review" }, // token-gated (HTTP Basic), not public
           read: ["/health", "/queries", "/query/:name", "/nodes", "/nodes/:id", "/claims", "/ontology", "/review/queue", "/review/stats", "/agents/config", "/contact/messages", "/ask/log", "POST /mcp"],
-          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-canon", "POST /admin/harvest-topics", "POST /admin/harvest-guideline", "POST /admin/reembed"],
+          write: ["POST /ask", "POST /nodes", "POST /claims", "POST /evidence", "POST /contact", "POST /review/:id/approve", "POST /review/:id/reject", "POST /review/:id/repair", "POST /agents/config", "POST /admin/dedup", "POST /admin/requeue-failed", "POST /admin/review", "POST /admin/gap-topics", "POST /admin/map-codes", "POST /admin/harvest", "POST /admin/harvest-canon", "POST /admin/harvest-topics", "POST /admin/harvest-guideline", "POST /admin/reembed"],
         });
       }
       if (path === "/health") {

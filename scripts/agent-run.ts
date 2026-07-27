@@ -20,7 +20,9 @@ import { reviewBatch } from "../src/reviewer.ts";
 
 const num = (k: string, d: number) => {
   const v = Number(process.env[k]);
-  return Number.isFinite(v) && v > 0 ? v : d;
+  // Allow 0 (an explicit "off", e.g. CURATOR_TOPICS_PER_RUN=0 to pause harvesting
+  // while draining the review backlog); only fall back to the default when unset.
+  return Number.isFinite(v) && v >= 0 ? v : d;
 };
 
 async function main(): Promise<void> {
