@@ -18,6 +18,7 @@ export const KNOWN_MODELS: ModelInfo[] = [
   { id: "claude-opus-4-8", label: "Opus 4.8", note: "default" },
   { id: "claude-opus-4-7", label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
+  { id: "claude-sonnet-5", label: "Sonnet 5", note: "fast · good for harvest/curation" },
   { id: "claude-sonnet-4-6", label: "Sonnet 4.6", note: "faster / cheaper" },
   { id: "claude-haiku-4-5", label: "Haiku 4.5", note: "fastest / cheapest" },
   { id: "claude-fable-5", label: "Fable 5", note: "most capable · pricier" },
@@ -27,7 +28,7 @@ export const KNOWN_MODELS: ModelInfo[] = [
 // thinking parameter entirely, which is the safe default — other models reject
 // `thinking: {type:"adaptive"}` with a 400. (Confirmed against the live API:
 // Haiku 4.5 does NOT support adaptive thinking, so it is excluded here.)
-const ADAPTIVE = /^claude-(opus-5|opus-4-[678]|sonnet-4-6|fable-5|mythos-5)\b/;
+const ADAPTIVE = /^claude-(opus-5|opus-4-[678]|sonnet-5|sonnet-4-6|fable-5|mythos-5)\b/;
 export function supportsAdaptiveThinking(model: string): boolean {
   return ADAPTIVE.test((model ?? "").trim());
 }

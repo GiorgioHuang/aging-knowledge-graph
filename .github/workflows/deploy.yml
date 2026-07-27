@@ -71,7 +71,7 @@ jobs:
           # Review runs on Opus 5 by default (the review queue's grounding checks
           # want the most capable model); overridable via the REVIEWER_MODEL repo
           # variable, or per-run from the settings UI (DB override wins).
-          ENVVARS="COMMIT_SHA=${{ github.sha }},REVIEWER_MODEL=${{ vars.REVIEWER_MODEL || 'claude-opus-5' }}"
+          ENVVARS="COMMIT_SHA=${{ github.sha }},REVIEWER_MODEL=${{ vars.REVIEWER_MODEL || 'claude-opus-5' }},CURATOR_MODEL=${{ vars.CURATOR_MODEL || 'claude-sonnet-5' }}"
           if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
             SECRETS="$SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
             # EMBEDDINGS_MAX_RPM paces requests to the provider's rate limit
@@ -119,7 +119,7 @@ jobs:
           # MUST use the SAME embedder as the service, or it would write vectors of
           # the wrong dimension/space. Mount the embeddings key + provider when set.
           JOB_SECRETS="DATABASE_URL=DATABASE_URL:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
-          JOB_ENV="CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }},REVIEWER_MODEL=${{ vars.REVIEWER_MODEL || 'claude-opus-5' }}"
+          JOB_ENV="CURATOR_TOPICS_PER_RUN=${{ vars.CURATOR_TOPICS_PER_RUN || '3' }},REVIEWER_CLAIMS_PER_RUN=${{ vars.REVIEWER_CLAIMS_PER_RUN || '12' }},REVIEWER_MODEL=${{ vars.REVIEWER_MODEL || 'claude-opus-5' }},CURATOR_MODEL=${{ vars.CURATOR_MODEL || 'claude-sonnet-5' }}"
           if gcloud secrets describe EMBEDDINGS_API_KEY --project "$PROJECT" >/dev/null 2>&1; then
             JOB_SECRETS="$JOB_SECRETS,EMBEDDINGS_API_KEY=EMBEDDINGS_API_KEY:latest"
             JOB_ENV="$JOB_ENV,EMBEDDINGS_PROVIDER=${{ vars.EMBEDDINGS_PROVIDER || 'voyage' }},EMBEDDINGS_MAX_RPM=${{ vars.EMBEDDINGS_MAX_RPM || '3' }}"
