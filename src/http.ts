@@ -356,7 +356,7 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
         let body: Record<string, unknown> = {};
         try { body = JSON.parse((await readBody(req)) || "{}"); } catch { return send(res, 400, { error: "invalid JSON" }); }
         try {
-          const out = await harvestTopicBatch({ offset: Number(body.offset) || 0, count: Number(body.count) || 2, per: Number(body.per) || 3 });
+          const out = await harvestTopicBatch({ offset: Number(body.offset) || 0, count: Number(body.count) || 1, per: Number(body.per) || 2 });
           if (state.reload) await state.reload();
           return send(res, 200, out);
         } catch (e) {

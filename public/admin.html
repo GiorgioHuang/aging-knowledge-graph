@@ -288,19 +288,29 @@ async function harvestCanon() {
 async function harvestTopics() {
   const out = $("tp_out"), btn = $("tp_btn");
   btn.disabled = true;
-  let offset = 0, total = null, created = 0, merged = 0, proposed = 0, round = 0;
+  let offset = 0, total = null, created = 0, merged = 0, proposed = 0, round = 0, fails = 0;
   const done = [];
   try {
     do {
       round++;
       show(out, `sweeping priority topics… batch ${round}${total != null ? ` (${offset}/${total})` : ""} — ${created} new claim(s) so far`, true);
-      const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 2, per: 3 });
-      if (status !== 200) { show(out, body, false); return; }
+      // One topic × 2 papers per round-trip: keeps each request well under the
+      // gateway timeout (like the canon sweep), the loop accumulates the rest.
+      const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 1, per: 2 });
+      if (status !== 200) {
+        // A batch can occasionally time out at the gateway (empty {}); the batch
+        // is committed server-side per topic, so re-issuing the same offset is
+        // safe (persist de-dups). Retry a few times before giving up.
+        if (++fails <= 4) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        show(out, body && Object.keys(body).length ? body : `request failed (status ${status}) after retries — try again to continue from ${offset}${total != null ? "/" + total : ""}`, false);
+        return;
+      }
+      fails = 0;
       total = body.total; offset = body.nextOffset;
       created += body.created; merged += body.merged; proposed += body.proposed;
       (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.papers} paper(s), ${e.created} new, ${e.merged} evidence`));
       if (body.done) break;
-    } while (offset < total && round < 40);
+    } while (offset < total && round < 60);
     show(out, `Done — swept ${total} priority topics, ${proposed} extracted, ${created} new claim(s), ${merged} evidence added.\n\n${done.join("\n")}`, true);
     await reload();
   } catch (e) { show(out, String((e && e.message) || e), false); }

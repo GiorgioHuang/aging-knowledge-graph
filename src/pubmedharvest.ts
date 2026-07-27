@@ -240,7 +240,7 @@ export function priorityTopics(): TopicEntry[] {
  *  evidence-kind PubMed harvest for `per` items (reviews / meta-analyses / RCTs
  *  in older adults). New claims are `unverified` → Reviewer gate. */
 export async function harvestTopicBatch(
-  { offset = 0, count = 2, per = 3, kind = "evidence", model }: { offset?: number; count?: number; per?: number; kind?: "evidence" | "guideline"; model?: string },
+  { offset = 0, count = 1, per = 2, kind = "evidence", model }: { offset?: number; count?: number; per?: number; kind?: "evidence" | "guideline"; model?: string },
 ): Promise<CanonSummary> {
   const topics = priorityTopics();
   const total = topics.length;
