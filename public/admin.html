@@ -288,12 +288,18 @@ async function harvestCanon() {
 async function harvestTopics() {
   const out = $("tp_out"), btn = $("tp_btn");
   btn.disabled = true;
-  let offset = 0, total = null, created = 0, merged = 0, proposed = 0, round = 0, fails = 0;
+  let offset = 0, created = 0, merged = 0, proposed = 0, round = 0, fails = 0;
   const done = [];
   try {
+    // Dry-run first: confirm the deploy actually loaded the topic list, and take
+    // the count from the server so the summary can never read "null".
+    const chk = await req("GET", "/admin/harvest-topics");
+    if (chk.status !== 200) { show(out, chk.body, false); return; }
+    const total = Number(chk.body.total) || 0;
+    if (!total) { show(out, "No priority topics loaded on the server (seed/priority-topics.json missing from the deployment?).", false); return; }
     do {
       round++;
-      show(out, `sweeping priority topics… batch ${round}${total != null ? ` (${offset}/${total})` : ""} — ${created} new claim(s) so far`, true);
+      show(out, `sweeping priority topics… (${offset}/${total}) — ${created} new claim(s) so far`, true);
       // One topic × 2 papers per round-trip: keeps each request well under the
       // gateway timeout (like the canon sweep), the loop accumulates the rest.
       const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 1, per: 2 });
@@ -302,11 +308,11 @@ async function harvestTopics() {
         // is committed server-side per topic, so re-issuing the same offset is
         // safe (persist de-dups). Retry a few times before giving up.
         if (++fails <= 4) { await new Promise(r => setTimeout(r, 1500)); continue; }
-        show(out, body && Object.keys(body).length ? body : `request failed (status ${status}) after retries — try again to continue from ${offset}${total != null ? "/" + total : ""}`, false);
+        show(out, body && Object.keys(body).length ? body : `request failed (status ${status}) after retries — try again to continue from ${offset}/${total}`, false);
         return;
       }
       fails = 0;
-      total = body.total; offset = body.nextOffset;
+      offset = body.nextOffset;
       created += body.created; merged += body.merged; proposed += body.proposed;
       (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.papers} paper(s), ${e.created} new, ${e.merged} evidence`));
       if (body.done) break;

@@ -29,7 +29,7 @@ import { graphClaimQuality } from "./quality.ts";
 import { saveAskLog, listAskLogs } from "./asklog.ts";
 import { processGapQuestions } from "./gaptopics.ts";
 import { mapUnmappedNodes, listUnmappedNodes, diagnoseNode } from "./codemap.ts";
-import { harvestPubmed, harvestGuidelineCanon, harvestTopicBatch } from "./pubmedharvest.ts";
+import { harvestPubmed, harvestGuidelineCanon, harvestTopicBatch, priorityTopics } from "./pubmedharvest.ts";
 import { harvestGuideline } from "./guidelineharvest.ts";
 import { getEmbedder } from "./embeddings.ts";
 import { reembedAll } from "./reembed.ts";
@@ -59,7 +59,10 @@ function send(res: import("node:http").ServerResponse, status: number, body: unk
 export const BUILD_VERSION = (process.env.COMMIT_SHA || process.env.K_REVISION || "dev").slice(0, 7);
 function sendHtml(res: import("node:http").ServerResponse, file: string): void {
   const html = readFileSync(join(here, "..", "public", file), "utf8").replace(/\{\{VERSION\}\}/g, BUILD_VERSION);
-  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  // Always revalidate: the pages carry inline JS that changes every deploy, so a
+  // cached copy can leave the browser running stale client code against a new
+  // server. no-cache forces a conditional fetch on each load.
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" });
   res.end(html);
 }
 
@@ -343,6 +346,19 @@ export function createServer(state: ServerState = { graph: loadGraph(), backend:
           return send(res, 200, out);
         } catch (e) {
           return send(res, 502, { error: `canon harvest failed: ${(e as Error).message}` });
+        }
+      }
+
+      // ---- priority-topics: GET = dry-run (how many topics the deploy loaded) ----
+      if (path === "/admin/harvest-topics" && req.method === "GET") {
+        const token = process.env.CURATOR_TOKEN;
+        if (!token) return send(res, 403, { error: "disabled (CURATOR_TOKEN not set)" });
+        if (!hasCuratorToken(req)) return send(res, 401, { error: "unauthorized" });
+        try {
+          const topics = priorityTopics();
+          return send(res, 200, { total: topics.length, topics: topics.map((t) => t.label) });
+        } catch (e) {
+          return send(res, 500, { error: `priority topics unavailable: ${(e as Error).message}` });
         }
       }
 
