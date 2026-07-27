@@ -300,12 +300,14 @@ async function harvestTopics() {
     do {
       round++;
       show(out, `sweeping priority topics… (${offset}/${total}) — ${created} new claim(s) so far`, true);
-      // One topic × 2 papers per round-trip: keeps each request well under the
-      // gateway timeout (like the canon sweep), the loop accumulates the rest.
-      const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 1, per: 2 });
+      // One topic × one paper per round-trip: the smallest unit of work, so each
+      // request finishes well under the front-door gateway timeout even when the
+      // extractor is slow. The loop accumulates the rest; the server isolates each
+      // topic so a failure still advances nextOffset (never gets stuck).
+      const { status, body } = await req("POST", "/admin/harvest-topics", { offset, count: 1, per: 1 });
       if (status !== 200) {
-        // A batch can occasionally time out at the gateway (empty {}); the batch
-        // is committed server-side per topic, so re-issuing the same offset is
+        // A batch can still occasionally time out at the gateway (empty {}); the
+        // work is committed server-side per topic, so re-issuing the same offset is
         // safe (persist de-dups). Retry a few times before giving up.
         if (++fails <= 4) { await new Promise(r => setTimeout(r, 1500)); continue; }
         show(out, body && Object.keys(body).length ? body : `request failed (status ${status}) after retries — try again to continue from ${offset}/${total}`, false);
@@ -314,7 +316,7 @@ async function harvestTopics() {
       fails = 0;
       offset = body.nextOffset;
       created += body.created; merged += body.merged; proposed += body.proposed;
-      (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.papers} paper(s), ${e.created} new, ${e.merged} evidence`));
+      (body.entries || []).forEach(e => done.push(`· ${e.label} — ${e.error ? "⚠ " + e.error : `${e.papers} paper(s), ${e.created} new, ${e.merged} evidence`}`));
       if (body.done) break;
     } while (offset < total && round < 60);
     show(out, `Done — swept ${total} priority topics, ${proposed} extracted, ${created} new claim(s), ${merged} evidence added.\n\n${done.join("\n")}`, true);

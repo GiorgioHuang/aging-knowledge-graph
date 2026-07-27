@@ -23,6 +23,8 @@ export interface LlmOptions {
   maxTokens?: number;
   model?: string;
   thinking?: boolean; // default: on for models that support it; pass false for fast extraction
+  timeoutMs?: number; // per-attempt abort timeout; overrides LLM_TIMEOUT_MS (bound the hot path)
+  retries?: number;   // max attempts; overrides LLM_RETRIES (fewer on latency-bound HTTP paths)
 }
 
 export interface Usage { input_tokens: number; output_tokens: number }
@@ -67,8 +69,8 @@ export async function completeWithUsage(messages: LlmMessage[], opts: LlmOptions
   };
   let res: Response | undefined;
   let lastErr = "";
-  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS) || 180000; // 3 min — adaptive thinking can be slow
-  const attempts = Number(process.env.LLM_RETRIES) || 5;
+  const timeoutMs = opts.timeoutMs ?? (Number(process.env.LLM_TIMEOUT_MS) || 180000); // 3 min — adaptive thinking can be slow
+  const attempts = opts.retries ?? (Number(process.env.LLM_RETRIES) || 5);
   for (let attempt = 0; attempt < attempts; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, Math.min(8000, 800 * 2 ** (attempt - 1))));
     const ctrl = new AbortController();

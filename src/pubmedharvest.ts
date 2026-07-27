@@ -80,7 +80,10 @@ Extract up to 6 claims that THIS ABSTRACT directly supports. Respond with ONLY a
 export async function extractFromAbstract(meta: SourceMeta, existing: { id: string; name: string; type: string }[], model: string): Promise<Candidate[]> {
   let raw: RawClaim[];
   try {
-    const text = await complete([{ role: "user", content: buildExtractPrompt(meta, existing) }], { system: EXTRACT_SYSTEM, maxTokens: 4000, model, thinking: false });
+    // Bound the extraction call hard: it runs behind an HTTP request with a
+    // front-door gateway timeout (~100s), so a single slow/rate-limited call must
+    // fail fast (→ this topic yields nothing) rather than hang the whole request.
+    const text = await complete([{ role: "user", content: buildExtractPrompt(meta, existing) }], { system: EXTRACT_SYSTEM, maxTokens: 4000, model, thinking: false, timeoutMs: 40000, retries: 2 });
     const parsed = extractJson<unknown>(text);
     raw = Array.isArray(parsed) ? parsed as RawClaim[] : Array.isArray((parsed as { claims?: unknown })?.claims) ? (parsed as { claims: RawClaim[] }).claims : [];
   } catch { return []; }
@@ -184,7 +187,7 @@ export interface CanonSummary {
   created: number;
   merged: number;
   reused_nodes: number;
-  entries: Array<{ label: string; papers: number; created: number; merged: number }>;
+  entries: Array<{ label: string; papers: number; created: number; merged: number; error?: string }>;
 }
 
 /** Harvest a BATCH of the landmark-guideline canon from PubMed. Batched by
@@ -240,7 +243,7 @@ export function priorityTopics(): TopicEntry[] {
  *  evidence-kind PubMed harvest for `per` items (reviews / meta-analyses / RCTs
  *  in older adults). New claims are `unverified` → Reviewer gate. */
 export async function harvestTopicBatch(
-  { offset = 0, count = 1, per = 2, kind = "evidence", model }: { offset?: number; count?: number; per?: number; kind?: "evidence" | "guideline"; model?: string },
+  { offset = 0, count = 1, per = 1, kind = "evidence", model }: { offset?: number; count?: number; per?: number; kind?: "evidence" | "guideline"; model?: string },
 ): Promise<CanonSummary> {
   const topics = priorityTopics();
   const total = topics.length;
@@ -253,10 +256,18 @@ export async function harvestTopicBatch(
     proposed: 0, created: 0, merged: 0, reused_nodes: 0, entries: [],
   };
   for (const e of batch) {
-    const r = await harvestPubmed({ query: e.query, retmax: Math.max(1, Math.min(5, per)), model: useModel, kind });
+    // Per-topic isolation: a topic that fails (LLM timeout, PubMed hiccup) must
+    // NOT abort the batch — otherwise the route 502s, nextOffset never advances,
+    // and the client is stuck re-issuing the same offset forever. Count it as
+    // processed with 0 results (record the error) so the sweep always moves on.
+    try {
+      const r = await harvestPubmed({ query: e.query, retmax: Math.max(1, Math.min(5, per)), model: useModel, kind });
+      out.proposed += r.proposed; out.created += r.created; out.merged += r.merged; out.reused_nodes += r.reused_nodes;
+      out.entries.push({ label: e.label, papers: r.papers, created: r.created, merged: r.merged });
+    } catch (err) {
+      out.entries.push({ label: e.label, papers: 0, created: 0, merged: 0, error: (err as Error).message?.slice(0, 200) || "harvest failed" });
+    }
     out.processed++;
-    out.proposed += r.proposed; out.created += r.created; out.merged += r.merged; out.reused_nodes += r.reused_nodes;
-    out.entries.push({ label: e.label, papers: r.papers, created: r.created, merged: r.merged });
   }
   out.nextOffset = start + out.processed;
   out.done = out.nextOffset >= total;
