@@ -92,6 +92,20 @@ export const registry: QueryDef[] = [
     run: (g) => Q.comparative(g),
   },
   {
+    name: "path",
+    description:
+      "Shortest connecting path between two nodes, in one call — traces the platform's Problem→Theory→Mechanism→Intervention→Outcome→Measurement chain even though its hops run in different claim directions (traversal is undirected). Each step returns the relationship, direction, GRADE certainty, status and evidence sources; `forward` says whether the claim was followed with or against its own direction. Bounded by max_hops (default 6).",
+    inputSchema: obj(
+      {
+        from: { type: "string", description: "start node id, e.g. ga:loneliness" },
+        to: { type: "string", description: "end node id, e.g. ga:ucla" },
+        max_hops: { type: "number", description: "max path length in edges (default 6, max 12)" },
+      },
+      ["from", "to"],
+    ),
+    run: (g, a) => Q.path(g, String(a.from), String(a.to), { maxHops: int(a.max_hops, 6) }),
+  },
+  {
     name: "search",
     description:
       "Natural-language semantic search over nodes and claims (cosine similarity). Optionally limit to owner='node' or 'claim'. Returns ranked hits with scores.",

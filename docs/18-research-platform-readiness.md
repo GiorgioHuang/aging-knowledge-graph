@@ -10,8 +10,16 @@
 > `knowledge_gap` / `research_question` node types and `explains` / `informs` /
 > `generates` relationships were added (migration `0011`), plus a
 > `knowledge_gaps(topic)` MCP tool and a seeded loneliness showcase. The two
-> P0 *schema/MCP* gaps below are now ✅. The remaining P0 item is **content
-> growth** in the priority domains (via the Curator), plus P1/P2 items.
+> P0 *schema/MCP* gaps below are now ✅. P0 **content growth** in the priority
+> domains is served by one-click PubMed harvesters (priority-topics + guideline
+> canon) and a batched review-drain, running on Sonnet 5 (curator) / Opus 5
+> (reviewer).
+>
+> **Update — P1 implemented.** `intervention_component` node type +
+> `operates_through` (intervention→mechanism) and `contributes_to`
+> (mechanism→outcome) typed edges (migration `0012`), and a `path(from,to)` MCP
+> tool for one-call multi-hop traversal. MCP tool descriptions were tuned for
+> research-agent workflows. The P1 matrix rows below are now ✅.
 
 ## TL;DR — Readiness: **Partially Ready**
 
@@ -51,23 +59,29 @@ growth by the Curator agent — a population effort, not a schema problem.
   that touches it, with evidence).
 - **Conflict detection** (contradicting claims) and **comparative-effectiveness**
   claims.
-- **Machine access for agents**: 12 read tools over **MCP** (stdio and
+- **Machine access for agents**: 14 read tools over **MCP** (stdio and
   `POST /mcp`) and a REST API. Standards codes on nodes
   (MONDO/HP/GO/ChEBI/FoodOn/MeSH/RxNorm/ROR/ORCID) for interoperability.
 - **Continuous, cited growth**: Curator harvests real papers (PubMed) and
   clinical guidelines into grounded, `unverified` claims; Reviewer promotes them.
 
-## What we will provide **next** (planned)
+## What we have added since (P0 + P1 — ✅ done)
 
-- **Theory / Model** as first-class entities, with `informs` (theory→intervention)
-  and `explains` (theory→mechanism) relationships. *(P0)*
-- **Knowledge Gap / Research Question** as first-class entities, plus an MCP query
-  that answers "what is missing or weakly supported for topic X?" *(P0)*
-- **Targeted content** in the platform's priority domains via the Curator. *(P0, ongoing)*
-- **Intervention Components** (`part_of` an intervention) and explicit
-  `operates_through` / `contributes_to` edges. *(P1)*
-- A dedicated **multi-hop path** MCP tool
+- ✅ **Theory / Model** as first-class entities, with `informs`
+  (theory→intervention) and `explains` (theory→mechanism). *(P0)*
+- ✅ **Knowledge Gap / Research Question** as first-class entities + the
+  `knowledge_gaps(topic)` MCP query ("what is missing/weak for X?"). *(P0)*
+- ✅ **Intervention Components** (`part_of`) + explicit `operates_through` /
+  `contributes_to` mechanistic edges. *(P1)*
+- ✅ A dedicated **multi-hop `path`** MCP tool
   (`Problem → Theory → Mechanism → Intervention → Outcome → Measurement`). *(P1)*
+
+**Still ongoing / next**
+
+- **Targeted content** in the platform's priority domains via the harvesters +
+  Curator (a continuous population effort, not a schema change).
+- **P2**: a dedicated `risk` type if needed; richer surfacing of
+  indirect/conflicting evidence; policy / population-health query presets.
 
 ---
 
@@ -76,14 +90,14 @@ growth by the Curator agent — a population effort, not a schema problem.
 | Capability | Status | Evidence / Notes | Priority to close |
 |---|---|---|---|
 | **Intervention retrieval** | ✅ Ready | `intervention` node type; `treats/prevents/improves/reduces_risk_of/recommends`; `search`, `list_nodes`, `neighbourhood` | — |
-| **Mechanism modelling** | 🟡 Partial | `mechanism` node type + `mechanism` field on claims; but no explicit `operates_through` / `contributes_to` edges (currently via `causes`/`improves`) | P1 |
+| **Mechanism modelling** | ✅ Ready *(P1 done)* | `mechanism` node type + `mechanism` field on claims, plus explicit `operates_through` (intervention→mechanism) and `contributes_to` (mechanism→outcome) typed edges | — |
 | **Outcome modelling** | ✅ Ready | `outcome` type; `direction`, `effect_value/measure`, `certainty` | — |
 | **Measurement retrieval** | ✅ Ready (schema) / 🟡 content | `scale` + `tool` types with `measures`/`assesses`; 8 scales seeded; needs more instruments (UCLA-LS, de Jong Gierveld, WHO-5, etc.) | P0 content |
 | **Evidence provenance** | ✅ Ready (strength) | `source_id`, `quote`, `study_design`, `certainty`, `status`, comparator; Reviewer verification | — |
 | **Theory retrieval** | ✅ Ready *(P0 done)* | `theory` + `model` node types with `explains`/`informs` links; query via `list_nodes(type=theory)` / `search` | — |
 | **Knowledge-gap modelling** | ✅ Ready *(P0 done)* | first-class `knowledge_gap` + `research_question` nodes with `generates`/`related`; `knowledge_gaps(topic)` MCP tool (also surfaces weak/unverified evidence). `gaptopics` still feeds the curator from unanswered Q&A | — |
-| **Path queries** | 🟡 Partial | hop-by-hop via `node_detail`/`neighbourhood`; no single multi-hop path tool | P1 |
-| **MCP access** | ✅ Ready | 12 tools, prefix `graceage_`, over stdio + `POST /mcp` | — |
+| **Path queries** | ✅ Ready *(P1 done)* | `path(from,to,max_hops?)` MCP tool — shortest connecting chain (undirected over claim edges), each hop with relationship/certainty/status/sources; hop-by-hop `node_detail`/`neighbourhood` still available | — |
+| **MCP access** | ✅ Ready | 14 tools, prefix `graceage_`, over stdio + `POST /mcp` | — |
 | **Population scoping** | ✅ Ready | `population` type + `for_population` | — |
 | **Risk** | 🟡 Partial | via `increases_risk_of`/`worsens`; no dedicated `risk` node type (usually not needed) | P2 |
 
@@ -94,19 +108,20 @@ growth by the Curator agent — a population effort, not a schema problem.
 **Entities represented** (node types):
 `disease, symptom, outcome, population, intervention, exercise, nutrition, drug,
 mechanism, scale, tool, research, paper, guideline, expert, organization,
-technology`.
+technology, theory, model, knowledge_gap, research_question,
+intervention_component`.
 
 **Relationships**:
 `treats, prevents, improves, worsens, causes, increases_risk_of,
 reduces_risk_of, diagnoses, assesses, measures, is_a, part_of, recommends,
-related`.
+related, explains, informs, generates, operates_through, contributes_to`.
 
 **Mapping to the platform's requested entities**
 
 | Requested | Today |
 |---|---|
 | Intervention | ✅ `intervention` |
-| Intervention Component | ❌ (add via `part_of`) |
+| Intervention Component | ✅ `intervention_component` (`part_of`) *(P1 done)* |
 | Mechanism of Action | ✅ `mechanism` |
 | Outcome | ✅ `outcome` |
 | Measurement Instrument | ✅ `scale` / `tool` |
@@ -116,26 +131,28 @@ related`.
 | Systematic Review / Meta-analysis / Study | ✅ as `study_design` on evidence (attribute, not a node type) |
 | Risk | 🟡 via `increases_risk_of` (no node type) |
 | Healthy Aging Concept / Problem | 🟡 via `outcome` / `disease` / `symptom` (no dedicated type) |
-| **Theory / Model** | ❌ **missing** |
-| **Knowledge Gap / Research Question** | ❌ **missing as first-class** |
+| **Theory / Model** | ✅ `theory` / `model` *(P0 done)* |
+| **Knowledge Gap / Research Question** | ✅ `knowledge_gap` / `research_question` *(P0 done)* |
 
 **Domains already in scope** (relevant to the platform): `digital health`,
 `behavior change`, `mental health`, `caregiving`, `AI in healthcare`, plus
 gerontology, frailty, falls, dementia, rehabilitation, nutrition, exercise,
 sleep, palliative care.
 
-## B. Missing capabilities
+## B. Missing capabilities — ✅ closed (P0/P1)
 
-1. **Theory / Model** entities and their relationships (`explains`, `informs`).
-2. **Knowledge Gap** and **Research Question** as queryable entities (distinct
-   from today's data-quality `gaps` and Q&A-derived curator topics).
-3. A **single path-query** tool for the full Problem→…→Measurement chain.
+1. ✅ **Theory / Model** entities + `explains` / `informs` (P0).
+2. ✅ **Knowledge Gap** / **Research Question** as queryable entities + the
+   `knowledge_gaps(topic)` tool (P0) — distinct from the data-quality `gaps`
+   query and Q&A-derived curator topics.
+3. ✅ **Single path-query** tool (`path`) for the full Problem→…→Measurement
+   chain (P1).
 
 ## C. Partial capabilities
 
-1. **Mechanism edges** — mechanisms exist, but "intervention *operates_through*
-   mechanism" and "mechanism *contributes_to* outcome" are implied via generic
-   relationships rather than explicit typed edges.
+1. ✅ **Mechanism edges** *(P1 done)* — `operates_through` (intervention→mechanism)
+   and `contributes_to` (mechanism→outcome) are now explicit typed edges, no
+   longer only implied via generic relationships.
 2. **Knowledge-gap surfacing** — `gaps` flags low-quality claims; `gaptopics`
    captures questions the graph couldn't answer. Neither yet answers "for this
    proposed intervention/outcome, where is evidence absent, indirect, or
@@ -165,31 +182,32 @@ Sparsely or not yet populated for the platform's priority areas:
 
 ## E. MCP gaps
 
-Today's 12 tools cover search, listing, node detail, neighbourhood traversal,
+Today's 14 tools cover search, listing, node detail, neighbourhood traversal,
 population scoping, "what affects", high-certainty, comparative, conflicts, and a
 data-quality `gaps` query — all with evidence attached.
 
-Not yet available:
+Now also available (P0/P1):
 
-- **Theory-centric queries** (blocked on the Theory entity).
-- **Structured knowledge-gap queries** ("what's missing/weak for X").
-- **One-call multi-hop path traversal** (currently compose from `node_detail`).
+- ✅ **Theory-centric queries** — `list_nodes(type=theory)` / `search`.
+- ✅ **Structured knowledge-gap queries** — `knowledge_gaps(topic)`.
+- ✅ **One-call multi-hop path traversal** — `path(from,to,max_hops?)`.
 
 ## F. Recommended changes (prioritised)
 
-**P0 — required for the platform**
-1. Add `theory` (and optionally `model`) node type + `explains`, `informs`
-   relationships. Reuse the existing evidence model for `supported_by`.
-2. Add `knowledge_gap` + `research_question` entities (+ `relates_to`,
-   `generates`) and an MCP `knowledge_gaps(topic)` query.
-3. Grow content in the priority domains (Curator harvests: loneliness/social,
-   reminiscence/life-story, digital interventions, measurement instruments).
+**P0 — required for the platform** ✅ *done*
+1. ✅ Added `theory` + `model` node types + `explains`, `informs` relationships
+   (migration `0011`); claims reuse the existing evidence model.
+2. ✅ Added `knowledge_gap` + `research_question` entities (+ `related`,
+   `generates`) and the MCP `knowledge_gaps(topic)` query.
+3. ✅ Content growth in the priority domains: one-click PubMed harvesters
+   (priority-topics + guideline canon) + batched review-drain (Sonnet 5 curator,
+   Opus 5 reviewer). Ongoing by design.
 
-**P1 — next phase**
-4. `intervention_component` (`part_of`) + explicit `operates_through` /
-   `contributes_to` edges.
-5. A dedicated `path(from,to)` MCP tool for the full chain.
-6. Tune MCP tool descriptions for research-agent workflows.
+**P1 — next phase** ✅ *done*
+4. ✅ `intervention_component` (`part_of`) + explicit `operates_through` /
+   `contributes_to` edges (migration `0012`).
+5. ✅ A dedicated `path(from,to)` MCP tool for the full chain.
+6. ✅ Tuned MCP tool descriptions for research-agent workflows.
 
 **P2 — future**
 7. Dedicated `risk` type if needed; richer surfacing of indirect/conflicting
@@ -241,15 +259,15 @@ MCP tools are prefixed `graceage_` and callable over stdio or `POST /mcp`
 {"method":"tools/call","params":{"name":"graceage_gaps","arguments":{}}}
 ```
 
-## Example MCP queries (enabled by **P0**, not yet available)
+## Example MCP queries (enabled by **P0 / P1**, now available)
 
 ```jsonc
 // Theory discovery
 {"name":"graceage_list_nodes","arguments":{"type":"theory","q":"social connection"}}
 // Structured knowledge-gap query
 {"name":"graceage_knowledge_gaps","arguments":{"topic":"digital reminiscence for loneliness"}}
-// Full path traversal (P1)
-{"name":"graceage_path","arguments":{"from":"ga:loneliness","to":"ga:ucla-loneliness-scale"}}
+// Full path traversal (P1) — shortest chain across claim directions
+{"name":"graceage_path","arguments":{"from":"ga:reminiscence-therapy","to":"ga:wellbeing"}}
 ```
 
 ---
@@ -275,5 +293,6 @@ MCP tools are prefixed `graceage_` and callable over stdio or `POST /mcp`
 
 ---
 
-*Prepared as a read-only audit. Implementation of P0/P1 items is scoped but not
-yet applied; see the capability matrix for current vs. planned status.*
+*Originally prepared as a read-only audit; **P0 and P1 items have since been
+implemented** (see the callouts at the top and the ✅ rows in the capability
+matrix). Remaining work is P2 plus ongoing content growth.*

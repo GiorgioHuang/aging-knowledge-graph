@@ -92,6 +92,7 @@ Example client config (stdio):
 | `for_population` | `population` | CQ18 — claims scoped to a population |
 | `neighbourhood` | `node` | CQ20/21 — a node's cross-domain neighbourhood |
 | `comparative` | — | CQ22 — comparative-effectiveness claims |
+| `path` | `from`, `to`, `max_hops?` | shortest connecting chain between two nodes (undirected over claim edges) — traces Problem→Theory→Mechanism→Intervention→Outcome→Measurement in one call; each hop carries relationship, certainty, status + sources |
 | `search` | `q`, `k?`, `owner?` | natural-language semantic search (see [`14`](14-semantic-search.md)) |
 | `get_node` | `id` | fetch one node |
 | `node_detail` | `id` | a node's outgoing/incoming claims (with evidence) + neighbours (also `GET /nodes/:id/detail`) |

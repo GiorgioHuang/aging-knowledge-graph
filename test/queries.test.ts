@@ -27,7 +27,9 @@ test("CQ22: comparative-effectiveness claim carries a comparator", () => {
 
 test("CQ16/24: gaps surface the unverified placeholders", () => {
   const ids = Q.gaps(g).map((r) => r.claim).sort();
-  assert.deepEqual(ids, ["fc-6", "fc-h1", "sc-6"]);
+  // fc-6/fc-h1/sc-6 are unverified placeholders; mech-1/mech-2 are the P1
+  // skeleton mechanism edges (structure seeded, evidence to be harvested).
+  assert.deepEqual(ids, ["fc-6", "fc-h1", "mech-1", "mech-2", "sc-6"]);
 });
 
 test("CQ20: loneliness is a cross-domain hub (mental health, mortality, dementia)", () => {

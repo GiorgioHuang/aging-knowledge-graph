@@ -88,6 +88,7 @@ in [`10-standards-alignment.md`](10-standards-alignment.md)),
 | **Model** | A conceptual/logic model | Behaviour-change logic model | components |
 | **Knowledge gap** | A recorded gap in evidence/theory | "digital reminiscence for loneliness is under-studied" | domains, description |
 | **Research question** | A question a gap generates | "does digital reminiscence reduce loneliness vs usual activities?" | domains |
+| **Intervention component** | A reusable building block of an intervention | "structured life-review sessions" (`part_of` reminiscence therapy) | domains |
 
 **Theory / Model / Knowledge gap / Research question** were added so the graph
 can support intervention-research workflows (Problem → Theory → Mechanism →
@@ -127,6 +128,8 @@ Core relationship types:
 | **explains** | Theory → Mechanism | theory A posits/explains mechanism B (structural) |
 | **informs** | Theory/Model → Intervention | theory A informs the design of intervention B (structural) |
 | **generates** | Knowledge gap → Research question | gap A gives rise to research question B (structural) |
+| **operates_through** | Intervention → Mechanism | intervention A works via mechanism B (typed mechanistic edge; evidence-backed) |
+| **contributes_to** | Mechanism → Outcome | mechanism A drives/contributes to outcome B (typed mechanistic edge; evidence-backed) |
 | **has_mechanism** | Claim/edge → Mechanism | the claim operates via mechanism B |
 | **evidence** | Paper/Research/Guideline → Claim | A provides evidence for claim B |
 | **contradicts** | Claim → Claim | A's evidence conflicts with B |

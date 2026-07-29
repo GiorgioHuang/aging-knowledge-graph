@@ -33,7 +33,7 @@ const MIGRATIONS = [
   "0001_init.sql", "0002_embeddings.sql", "0003_agents.sql", "0004_contact.sql",
   "0005_ask_log.sql", "0006_ask_log_gap.sql", "0007_ask_log_tokens.sql",
   "0008_topic_source.sql", "0009_node_codes.sql", "0010_node_codes_auto.sql",
-  "0011_theory_and_gaps.sql",
+  "0011_theory_and_gaps.sql", "0012_components_and_mechanism_edges.sql",
 ];
 
 // Postgres "already exists / duplicate" error codes — safe to ignore when a

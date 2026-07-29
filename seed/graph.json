@@ -1,6 +1,6 @@
 {
   "_comment": "Curated V0 seed graph. Evidence-backed cross-domain chains (falls/exercise, social/loneliness, dementia risk factors) plus interRAI/MDS assessment scales (CPS, DRS, ADL Hierarchy, CHESS, Pain) as a measurement layer. All DOIs/PMIDs verified (interRAI scale names are referenced with their validation-paper citations; the proprietary interRAI item dictionaries are NOT redistributed). Unconfirmed CURIE codes are omitted rather than guessed.",
-  "version": 5,
+  "version": 6,
 
   "nodes": [
     { "id": "ga:pop-community-older", "type": "population", "name": "Community-dwelling older adults (65+)", "domains": ["gerontology"] },
@@ -67,7 +67,10 @@
     { "id": "ga:wemwbs", "type": "scale", "name": "Warwick-Edinburgh Mental Well-being Scale (WEMWBS)", "domains": ["mental health"] },
     { "id": "ga:ryff-pwb", "type": "scale", "name": "Ryff Scales of Psychological Well-being", "domains": ["mental health"] },
     { "id": "ga:pil", "type": "scale", "name": "Purpose in Life Test (PIL)", "domains": ["mental health"] },
-    { "id": "ga:mspss", "type": "scale", "name": "Multidimensional Scale of Perceived Social Support (MSPSS)", "domains": ["mental health"] }
+    { "id": "ga:mspss", "type": "scale", "name": "Multidimensional Scale of Perceived Social Support (MSPSS)", "domains": ["mental health"] },
+
+    { "id": "ga:structured-life-review", "type": "intervention_component", "name": "Structured life-review sessions", "domains": ["mental health", "gerontology"], "description": "A reusable component of reminiscence/life-story interventions: guided, chronological review of life periods. Modelled as a part_of component so shared building blocks are queryable across interventions." },
+    { "id": "ga:self-continuity", "type": "mechanism", "name": "Self-continuity / identity integration", "domains": ["mental health"], "description": "Maintaining a coherent, integrated sense of self across the life course — a proposed mechanism through which reminiscence/life-story work affects well-being." }
   ],
 
   "claims": [
@@ -128,7 +131,11 @@
     { "id": "inf-sdt", "type": "informs", "subject": "ga:self-determination-theory", "object": "ga:psychosocial-intervention", "status": "curated" },
     { "id": "inf-sst", "type": "informs", "subject": "ga:socioemotional-selectivity", "object": "ga:social-participation", "status": "curated" },
 
-    { "id": "rel-dr", "type": "related", "subject": "ga:gap-digital-loneliness", "object": "ga:digital-reminiscence", "status": "curated" }
+    { "id": "rel-dr", "type": "related", "subject": "ga:gap-digital-loneliness", "object": "ga:digital-reminiscence", "status": "curated" },
+
+    { "id": "pc-1", "type": "part_of", "subject": "ga:structured-life-review", "object": "ga:reminiscence-therapy", "status": "curated" },
+    { "id": "mech-1", "type": "operates_through", "subject": "ga:reminiscence-therapy", "object": "ga:self-continuity", "status": "skeleton" },
+    { "id": "mech-2", "type": "contributes_to", "subject": "ga:self-continuity", "object": "ga:wellbeing", "status": "skeleton" }
   ],
 
   "contradictions": [

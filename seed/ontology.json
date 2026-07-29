@@ -4,13 +4,15 @@
     "disease", "symptom", "outcome", "population", "intervention", "exercise",
     "nutrition", "drug", "mechanism", "scale", "tool", "research", "paper",
     "guideline", "expert", "organization", "technology",
-    "theory", "model", "knowledge_gap", "research_question"
+    "theory", "model", "knowledge_gap", "research_question",
+    "intervention_component"
   ],
   "relationshipTypes": [
     "treats", "prevents", "improves", "worsens", "causes",
     "increases_risk_of", "reduces_risk_of", "diagnoses", "assesses", "measures",
     "is_a", "part_of", "recommends", "related",
-    "explains", "informs", "generates"
+    "explains", "informs", "generates",
+    "operates_through", "contributes_to"
   ],
   "definitionalRelationships": ["is_a", "part_of", "assesses", "measures", "diagnoses", "related", "explains", "informs", "generates"],
   "directions": ["increase", "decrease", "no_effect", "mixed"],

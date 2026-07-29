@@ -149,6 +149,101 @@ export function comparative(g: Graph): AnswerRow[] {
   return [...g.claims.values()].filter((c) => c.comparator !== undefined).map((c) => row(g, c));
 }
 
+export interface PathStep {
+  from: { id: string; name: string; type: string };
+  relationship: string;
+  direction?: string;
+  forward: boolean; // true if the claim runs from→to, false if traversed against its direction
+  claim: string;
+  certainty?: string;
+  status: string;
+  sources: string[];
+  to: { id: string; name: string; type: string };
+}
+export interface PathResult {
+  from: { id: string; name: string } | null;
+  to: { id: string; name: string } | null;
+  found: boolean;
+  length: number; // number of hops (edges); 0 when not found
+  steps: PathStep[];
+}
+
+/** Shortest connecting path between two nodes, treating each claim as an
+ *  (undirected) edge between its subject and object — so it can trace the
+ *  platform's Problem→Theory→Mechanism→Intervention→Outcome→Measurement chain in
+ *  one call even though those hops run in different claim directions. BFS, so the
+ *  first path found is shortest; bounded by `maxHops`. Each step carries the
+ *  claim's relationship, direction, certainty, status and evidence sources. */
+export function path(g: Graph, fromId: string, toId: string, opts: { maxHops?: number } = {}): PathResult {
+  const maxHops = Math.max(1, Math.min(12, opts.maxHops ?? 6));
+  const noderef = (id: string) => {
+    const n = g.nodes.get(id);
+    return { id, name: n?.name ?? id, type: n?.type ?? "" };
+  };
+  const src = g.nodes.get(fromId) ? { id: fromId, name: nameOf(g, fromId) } : null;
+  const dst = g.nodes.get(toId) ? { id: toId, name: nameOf(g, toId) } : null;
+  const empty: PathResult = { from: src, to: dst, found: false, length: 0, steps: [] };
+  if (!src || !dst) return empty;
+  if (fromId === toId) return { from: src, to: dst, found: true, length: 0, steps: [] };
+
+  // adjacency: node id -> [{ other, claim, forward }]
+  const adj = new Map<string, { other: string; claim: Claim; forward: boolean }[]>();
+  const add = (a: string, b: string, c: Claim, forward: boolean) => {
+    if (!adj.has(a)) adj.set(a, []);
+    adj.get(a)!.push({ other: b, claim: c, forward });
+  };
+  for (const c of g.claims.values()) {
+    if (!g.nodes.has(c.subject) || !g.nodes.has(c.object)) continue;
+    add(c.subject, c.object, c, true);
+    add(c.object, c.subject, c, false);
+  }
+
+  // BFS from src, recording the edge used to reach each node.
+  const prev = new Map<string, { from: string; claim: Claim; forward: boolean }>();
+  const visited = new Set<string>([fromId]);
+  let frontier = [fromId];
+  let depth = 0;
+  let reached = false;
+  while (frontier.length && depth < maxHops && !reached) {
+    depth++;
+    const next: string[] = [];
+    for (const cur of frontier) {
+      for (const edge of adj.get(cur) ?? []) {
+        if (visited.has(edge.other)) continue;
+        visited.add(edge.other);
+        prev.set(edge.other, { from: cur, claim: edge.claim, forward: edge.forward });
+        if (edge.other === toId) { reached = true; break; }
+        next.push(edge.other);
+      }
+      if (reached) break;
+    }
+    frontier = next;
+  }
+  if (!reached) return empty;
+
+  // Reconstruct src→dst.
+  const chain: { from: string; claim: Claim; forward: boolean; to: string }[] = [];
+  let node = toId;
+  while (node !== fromId) {
+    const p = prev.get(node)!;
+    chain.push({ from: p.from, claim: p.claim, forward: p.forward, to: node });
+    node = p.from;
+  }
+  chain.reverse();
+  const steps: PathStep[] = chain.map((s) => ({
+    from: noderef(s.from),
+    relationship: s.claim.type,
+    direction: s.claim.direction,
+    forward: s.forward,
+    claim: s.claim.id,
+    certainty: s.claim.certainty,
+    status: s.claim.status,
+    sources: sourcesOf(g, s.claim),
+    to: noderef(s.to),
+  }));
+  return { from: src, to: dst, found: true, length: steps.length, steps };
+}
+
 // ----- browse helpers (for the REST/MCP surface) -----
 
 /** Fetch a single node by id (or null). */
