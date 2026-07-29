@@ -20,21 +20,34 @@
 > (mechanism→outcome) typed edges (migration `0012`), and a `path(from,to)` MCP
 > tool for one-call multi-hop traversal. MCP tool descriptions were tuned for
 > research-agent workflows. The P1 matrix rows below are now ✅.
+>
+> **Update — P2 implemented.** `evidence_landscape(topic)` (direct / indirect
+> mechanism-mediated / conflicting / weak evidence) and `recommendations(
+> population?, issuer?)` (policy preset over authoritative `recommends` claims)
+> were added — no schema change. A dedicated `risk` node type was evaluated and
+> intentionally not added (risk stays a *role* via `increases_risk_of`/`worsens`).
+> MCP surface is now 16 tools.
 
-## TL;DR — Readiness: **Partially Ready**
+## TL;DR — Readiness: **Ready** (P0–P2 implemented)
 
 The graph is a solid **evidence-and-provenance backbone**. The chain
 `Population → Intervention → Mechanism → Outcome → Measurement → Evidence` is
-already expressible and queryable end-to-end, with full source tracing (real
+expressible and queryable end-to-end, with full source tracing (real
 PMID/DOI/URL, study design, GRADE certainty, verification status). Semantic +
 structured search and relationship traversal are live over both REST and MCP.
 
-Two capabilities the platform's framework assumes are **not yet first-class** and
-are the main work items: **Theory** (as an entity) and **Knowledge Gaps /
-Research Questions**. Separately, the *content* in the platform's priority domains
-(loneliness/social connection, life-story/reminiscence, digital interventions,
-ability-adaptive UX, measurement instruments) is **thin** and needs targeted
-growth by the Curator agent — a population effort, not a schema problem.
+The capabilities the platform's framework assumes are now **first-class**:
+**Theory / Model**, **Knowledge Gaps / Research Questions**, **intervention
+components + typed mechanism edges**, a **multi-hop path** query, an
+**evidence-landscape** view (direct/indirect/conflicting/weak), and a **policy
+recommendations** preset — all over MCP. The remaining work is not schema but
+**content depth** in the priority domains (loneliness/social connection,
+life-story/reminiscence, digital interventions, ability-adaptive UX, measurement
+instruments), which the one-click harvesters + Curator populate continuously.
+
+> *Historical note: this report began as a "Partially Ready" audit; the sections
+> below preserve the original gap analysis with ✅ markers showing what each
+> P0/P1/P2 change closed.*
 
 ---
 
@@ -59,7 +72,7 @@ growth by the Curator agent — a population effort, not a schema problem.
   that touches it, with evidence).
 - **Conflict detection** (contradicting claims) and **comparative-effectiveness**
   claims.
-- **Machine access for agents**: 14 read tools over **MCP** (stdio and
+- **Machine access for agents**: 16 read tools over **MCP** (stdio and
   `POST /mcp`) and a REST API. Standards codes on nodes
   (MONDO/HP/GO/ChEBI/FoodOn/MeSH/RxNorm/ROR/ORCID) for interoperability.
 - **Continuous, cited growth**: Curator harvests real papers (PubMed) and
@@ -76,12 +89,18 @@ growth by the Curator agent — a population effort, not a schema problem.
 - ✅ A dedicated **multi-hop `path`** MCP tool
   (`Problem → Theory → Mechanism → Intervention → Outcome → Measurement`). *(P1)*
 
+- ✅ **Evidence landscape** — `evidence_landscape(topic)` splits a topic's
+  evidence into direct / indirect (mechanism-mediated) / conflicting / weak. *(P2)*
+- ✅ **Policy preset** — `recommendations(population?, issuer?)` over
+  authoritative `recommends` claims with strength grades. *(P2)*
+
 **Still ongoing / next**
 
 - **Targeted content** in the platform's priority domains via the harvesters +
   Curator (a continuous population effort, not a schema change).
-- **P2**: a dedicated `risk` type if needed; richer surfacing of
-  indirect/conflicting evidence; policy / population-health query presets.
+- A dedicated **`risk` node type** was evaluated (P2) and intentionally **not**
+  added — risk is a *role* any node can play via `increases_risk_of` / `worsens`
+  (docs/02 §2); a node type would be bloat. Revisit only if a concrete need appears.
 
 ---
 
@@ -97,9 +116,11 @@ growth by the Curator agent — a population effort, not a schema problem.
 | **Theory retrieval** | ✅ Ready *(P0 done)* | `theory` + `model` node types with `explains`/`informs` links; query via `list_nodes(type=theory)` / `search` | — |
 | **Knowledge-gap modelling** | ✅ Ready *(P0 done)* | first-class `knowledge_gap` + `research_question` nodes with `generates`/`related`; `knowledge_gaps(topic)` MCP tool (also surfaces weak/unverified evidence). `gaptopics` still feeds the curator from unanswered Q&A | — |
 | **Path queries** | ✅ Ready *(P1 done)* | `path(from,to,max_hops?)` MCP tool — shortest connecting chain (undirected over claim edges), each hop with relationship/certainty/status/sources; hop-by-hop `node_detail`/`neighbourhood` still available | — |
-| **MCP access** | ✅ Ready | 14 tools, prefix `graceage_`, over stdio + `POST /mcp` | — |
+| **MCP access** | ✅ Ready | 16 tools, prefix `graceage_`, over stdio + `POST /mcp` | — |
 | **Population scoping** | ✅ Ready | `population` type + `for_population` | — |
-| **Risk** | 🟡 Partial | via `increases_risk_of`/`worsens`; no dedicated `risk` node type (usually not needed) | P2 |
+| **Risk** | ✅ By design | modelled as a *role* via `increases_risk_of`/`worsens`; a dedicated `risk` node type was evaluated (P2) and intentionally not added | — |
+| **Evidence landscape** | ✅ Ready *(P2 done)* | `evidence_landscape(topic)` — direct / indirect (mechanism-mediated) / conflicting / weak | — |
+| **Policy presets** | ✅ Ready *(P2 done)* | `recommendations(population?, issuer?)` over authoritative `recommends` claims with strength grades | — |
 
 ---
 
@@ -182,15 +203,17 @@ Sparsely or not yet populated for the platform's priority areas:
 
 ## E. MCP gaps
 
-Today's 14 tools cover search, listing, node detail, neighbourhood traversal,
+Today's 16 tools cover search, listing, node detail, neighbourhood traversal,
 population scoping, "what affects", high-certainty, comparative, conflicts, and a
 data-quality `gaps` query — all with evidence attached.
 
-Now also available (P0/P1):
+Now also available (P0/P1/P2):
 
 - ✅ **Theory-centric queries** — `list_nodes(type=theory)` / `search`.
 - ✅ **Structured knowledge-gap queries** — `knowledge_gaps(topic)`.
 - ✅ **One-call multi-hop path traversal** — `path(from,to,max_hops?)`.
+- ✅ **Evidence landscape** (direct/indirect/conflicting/weak) — `evidence_landscape(topic)`.
+- ✅ **Policy preset** over recommendations — `recommendations(population?, issuer?)`.
 
 ## F. Recommended changes (prioritised)
 
@@ -209,9 +232,11 @@ Now also available (P0/P1):
 5. ✅ A dedicated `path(from,to)` MCP tool for the full chain.
 6. ✅ Tuned MCP tool descriptions for research-agent workflows.
 
-**P2 — future**
-7. Dedicated `risk` type if needed; richer surfacing of indirect/conflicting
-   evidence; policy / population-health query presets.
+**P2** ✅ *done*
+7. ✅ Richer surfacing of indirect/conflicting/weak evidence
+   (`evidence_landscape(topic)`) and a policy / population-health preset
+   (`recommendations(population?, issuer?)`). A dedicated `risk` node type was
+   evaluated and intentionally not added (risk stays a role; see above).
 
 > **Design constraint (from the platform brief §9):** these additions should
 > land as **reusable healthy-aging infrastructure**, not overfit to one product.
@@ -293,6 +318,6 @@ MCP tools are prefixed `graceage_` and callable over stdio or `POST /mcp`
 
 ---
 
-*Originally prepared as a read-only audit; **P0 and P1 items have since been
+*Originally prepared as a read-only audit; **P0, P1 and P2 items have since been
 implemented** (see the callouts at the top and the ✅ rows in the capability
-matrix). Remaining work is P2 plus ongoing content growth.*
+matrix). Remaining work is ongoing content growth, not schema.*

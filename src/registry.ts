@@ -92,6 +92,23 @@ export const registry: QueryDef[] = [
     run: (g) => Q.comparative(g),
   },
   {
+    name: "evidence_landscape",
+    description:
+      "For a topic node, the shape of its evidence: direct claims on it, indirect claims that reach it through a mechanism (mechanism-mediated), conflicting claims (contradictions touching it), and weak claims (unverified/needs_refinement/skeleton/low/very_low). Answers 'for X, where is the evidence direct, indirect, conflicting, or thin?' — the data-driven companion to knowledge_gaps.",
+    inputSchema: obj({ topic: { type: "string", description: "topic node id or name substring" } }, ["topic"]),
+    run: (g, a) => Q.evidenceLandscape(g, String(a.topic)),
+  },
+  {
+    name: "recommendations",
+    description:
+      "Policy / population-health preset: authoritative recommends claims (guideline/organization → intervention) with each recommendation's verbatim strength grade and sources. Optionally scope to a population and/or an issuer (guideline/org id or name substring).",
+    inputSchema: obj({
+      population: { type: "string", description: "population node id or name substring (optional)" },
+      issuer: { type: "string", description: "guideline/organization node id or name substring (optional)" },
+    }),
+    run: (g, a) => Q.recommendations(g, { population: str(a.population), issuer: str(a.issuer) }),
+  },
+  {
     name: "path",
     description:
       "Shortest connecting path between two nodes, in one call — traces the platform's Problem→Theory→Mechanism→Intervention→Outcome→Measurement chain even though its hops run in different claim directions (traversal is undirected). Each step returns the relationship, direction, GRADE certainty, status and evidence sources; `forward` says whether the claim was followed with or against its own direction. Bounded by max_hops (default 6).",

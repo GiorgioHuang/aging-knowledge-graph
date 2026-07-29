@@ -168,6 +168,118 @@ export interface PathResult {
   steps: PathStep[];
 }
 
+/** Resolve a topic string to a node: exact id first, then a name/id substring. */
+function resolveTopic(g: Graph, topic: string) {
+  const t = topic.trim();
+  if (!t) return undefined;
+  const lc = t.toLowerCase();
+  return g.nodes.get(t) ?? [...g.nodes.values()].find((n) => n.name.toLowerCase().includes(lc) || n.id.toLowerCase().includes(lc));
+}
+
+const WEAK_CERTAINTY = new Set(["low", "very_low"]);
+const WEAK_STATUS = new Set(["unverified", "needs_refinement", "skeleton"]);
+const isWeak = (c: Claim) => WEAK_STATUS.has(c.status) || WEAK_CERTAINTY.has(String(c.certainty));
+
+export interface EvidenceLandscape {
+  topic: { id: string; name: string; type: string } | null;
+  direct: AnswerRow[];                                   // 1-hop claims on the topic
+  indirect: { via: { id: string; name: string }; claim: AnswerRow }[]; // 2-hop via a mechanism
+  conflicting: Array<{ a: AnswerRow; b: AnswerRow }>;    // contradictions touching the topic
+  weak: AnswerRow[];                                     // direct claims that are weak/unverified
+  summary: { direct: number; indirect: number; conflicting: number; weak: number };
+}
+
+/** P2 — richer surfacing of a topic's evidence: **direct** claims on it,
+ *  **indirect** claims reaching it through a mechanism node (mechanism-mediated
+ *  evidence), **conflicting** claims (contradictions touching it), and **weak**
+ *  claims (unverified / needs_refinement / skeleton / low / very_low). Answers
+ *  "for X, where is the evidence direct, indirect, conflicting, or thin?" —
+ *  complements `knowledge_gaps` (first-class gaps) with a data-driven view. */
+export function evidenceLandscape(g: Graph, topic: string): EvidenceLandscape {
+  const node = resolveTopic(g, topic);
+  const empty: EvidenceLandscape = {
+    topic: null, direct: [], indirect: [], conflicting: [], weak: [],
+    summary: { direct: 0, indirect: 0, conflicting: 0, weak: 0 },
+  };
+  if (!node) return empty;
+  const id = node.id;
+  const claims = [...g.claims.values()];
+  const touches = (c: Claim) => c.subject === id || c.object === id || c.population === id || c.mechanism === id;
+
+  const directClaims = claims.filter(touches);
+  const direct = directClaims.map((c) => row(g, c));
+  const weak = directClaims.filter(isWeak).map((c) => row(g, c));
+
+  // Indirect: reach the topic through a mechanism node. Find mechanism nodes
+  // adjacent to the topic, then the OTHER claims on those mechanisms that don't
+  // already touch the topic directly.
+  const mechIds = new Set<string>();
+  for (const c of directClaims) {
+    if (c.mechanism && g.nodes.get(c.mechanism)?.type === "mechanism") mechIds.add(c.mechanism);
+    for (const other of [c.subject, c.object]) {
+      if (other !== id && g.nodes.get(other)?.type === "mechanism") mechIds.add(other);
+    }
+  }
+  const indirect: EvidenceLandscape["indirect"] = [];
+  const seen = new Set<string>();
+  for (const m of mechIds) {
+    for (const c of claims) {
+      if (c.subject !== m && c.object !== m && c.mechanism !== m) continue;
+      if (touches(c)) continue;                 // already counted as direct
+      if (seen.has(c.id)) continue;
+      seen.add(c.id);
+      indirect.push({ via: { id: m, name: nameOf(g, m) }, claim: row(g, c) });
+    }
+  }
+
+  const conflicting = g.contradictions
+    .map((ct) => ({ ct, a: g.claims.get(ct.subject_claim), b: g.claims.get(ct.object_claim) }))
+    .filter(({ a, b }) => (a && touches(a)) || (b && touches(b)))
+    .map(({ a, b }) => ({ a: row(g, a!), b: row(g, b!) }));
+
+  return {
+    topic: { id: node.id, name: node.name, type: node.type },
+    direct, indirect, conflicting, weak,
+    summary: { direct: direct.length, indirect: indirect.length, conflicting: conflicting.length, weak: weak.length },
+  };
+}
+
+export interface RecommendationRow {
+  claim: string;
+  issuer: { id: string; name: string; type: string };
+  intervention: { id: string; name: string };
+  rec_strength?: string;
+  population?: string;
+  status: string;
+  sources: string[];
+}
+
+/** P2 policy / population-health preset: authoritative `recommends` claims
+ *  (guideline/organization → intervention), each with its verbatim strength
+ *  grade and sources. Optionally scope to a population (node id/substring) and/or
+ *  an issuer (guideline/org node id or name substring). */
+export function recommendations(g: Graph, opts: { population?: string; issuer?: string } = {}): RecommendationRow[] {
+  const popNode = opts.population ? resolveTopic(g, opts.population) : undefined;
+  const issuer = opts.issuer?.trim().toLowerCase();
+  return [...g.claims.values()]
+    .filter((c) => c.type === "recommends")
+    .filter((c) => !popNode || c.population === popNode.id)
+    .filter((c) => {
+      if (!issuer) return true;
+      const s = g.nodes.get(c.subject);
+      return c.subject.toLowerCase().includes(issuer) || (s?.name.toLowerCase().includes(issuer) ?? false);
+    })
+    .map((c) => ({
+      claim: c.id,
+      issuer: { id: c.subject, name: nameOf(g, c.subject), type: g.nodes.get(c.subject)?.type ?? "" },
+      intervention: { id: c.object, name: nameOf(g, c.object) },
+      rec_strength: c.rec_strength,
+      population: c.population ? nameOf(g, c.population) : undefined,
+      status: c.status,
+      sources: sourcesOf(g, c),
+    }));
+}
+
 /** Shortest connecting path between two nodes, treating each claim as an
  *  (undirected) edge between its subject and object — so it can trace the
  *  platform's Problem→Theory→Mechanism→Intervention→Outcome→Measurement chain in
