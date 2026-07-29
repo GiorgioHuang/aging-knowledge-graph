@@ -41,6 +41,8 @@ before *how*, so the platform can grow incrementally over a multi-year roadmap.
 | [`docs/15-deployment.md`](docs/15-deployment.md) | Deploy to Cloud Run (calling Neon) |
 | [`docs/16-curation.md`](docs/16-curation.md) | Write path & curation UI (token-gated) |
 | [`docs/17-agents.md`](docs/17-agents.md) | Curator + Reviewer agents (continuous, cited expansion) |
+| [`docs/18-research-platform-readiness.md`](docs/18-research-platform-readiness.md) | Capability audit vs. the Digital Intervention Research Platform (P0–P2 done) |
+| [`docs/19-platform-capabilities.md`](docs/19-platform-capabilities.md) | Outward-facing capabilities & integration guide for the research platform |
 | [`docs/glossary.md`](docs/glossary.md) | Bilingual glossary of key terms |
 
 ---
